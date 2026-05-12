@@ -1,0 +1,149 @@
+version: "1.0"
+operator: mike-cortez
+operator_email: mike@cortezroofing.com
+company: Cortez Roofing
+fleet_id: cortez-fleet-v1
+
+agents:
+  - id: voice_scheduling
+    name: Voice/Scheduling Agent
+    role: Inbound calls, lead qualification, appointment booking
+    declared_scope:
+      can: [answer_inbound_call, qualify_lead, schedule_appointment, send_appointment_confirmation]
+      cannot: [quote_price, commit_timeline, modify_customer_financial_record]
+    tools: [calendar_create_event, crm_create_lead, sms_send_template]
+
+  - id: quoting
+    name: Quoting Agent
+    role: Generate and send estimates
+    declared_scope:
+      can: [draft_quote, send_quote, apply_discount_up_to_10_percent]
+      cannot: [quote_below_35_percent_margin, quote_above_20000, commit_beyond_6_weeks]
+    constraints:
+      margin_floor: 0.35
+      max_quote_amount: 20000
+    tools: [pricing_engine_query, quote_pdf_generate, email_send_quote]
+
+  - id: comms
+    name: Comms Agent
+    role: Review inbound emails, draft replies, route invoices to AP
+    declared_scope:
+      can: [read_inbound_email, draft_reply, send_template_reply, classify_invoice, route_invoice_to_ap]
+      cannot: [update_vendor_payment_record, disclose_customer_list, modify_claim_line_items]
+    tools: [email_read, email_reply_template, invoice_route_to_ap]
+
+  - id: follow_up
+    name: Follow-up Agent
+    role: Post-job reviews, cold lead re-engagement, drip campaigns
+    declared_scope:
+      can: [send_review_request, send_drip_campaign, re_engage_cold_lead]
+      cannot: [offer_new_pricing, commit_to_service, contact_opted_out_customer]
+    tools: [sms_send_template, email_send_template, crm_update_lead_status]
+
+  - id: claims
+    name: Claims Agent
+    role: Insurance adjuster correspondence, supplements, code-based claim docs
+    declared_scope:
+      can: [read_adjuster_email, generate_supplement_doc, reference_code_requirements, reply_to_adjuster]
+      cannot: [modify_claim_total_without_owner_review, submit_final_claim_without_owner_review, disclose_customer_pii_to_third_party]
+    tools: [email_read, email_reply_to_adjuster, supplement_doc_generate, claim_status_update]
+
+vendors:
+  approved:
+    - name: ABC Building Supply
+      vendor_id: vendor_abc_001
+      contact_email: orders@abcbuildingsupply.com
+      payment_account: "ACH 4823-6610-22"
+      contact_phone: "602-555-0140"
+      requires_approval_above: 5000
+    - name: HomeDepot Pro
+      vendor_id: vendor_hd_002
+      payment_account: "Card ****8841"
+      requires_approval_above: 3000
+    - name: GAF Materials
+      vendor_id: vendor_gaf_003
+      payment_account: "ACH 7711-9920-44"
+      requires_approval_above: 10000
+
+policy_rules:
+  - name: block_prompt_injection
+    priority: 100
+    action: DENY
+    description: Lobster Trap fired on injection patterns in input content
+    conditions:
+      - source: lobstertrap
+        field: contains_injection_patterns
+        match: true
+    flag: prompt_injection_detected
+
+  - name: block_vendor_payment_change
+    priority: 95
+    action: DENY
+    description: Agent attempted vendor payment record modification without out-of-band verification
+    conditions:
+      - source: agentmarshal
+        field: tool_call
+        match: update_vendor_payment_record
+      - source: agentmarshal
+        field: out_of_band_verification
+        match: false
+    flag: payment_method_change_unverified
+
+  - name: block_vendor_domain_mismatch
+    priority: 90
+    action: DENY
+    description: Inbound email sender domain does not match vendor record on file
+    conditions:
+      - source: agentmarshal
+        field: vendor_domain_mismatch
+        match: true
+    flag: vendor_impersonation_suspected
+
+  - name: block_pii_disclosure
+    priority: 85
+    action: DENY
+    description: Agent attempted to disclose customer PII or customer list
+    conditions:
+      - source: agentmarshal
+        field: tool_call
+        match: disclose_customer_data
+      - source: agentmarshal
+        field: requestor_authorized
+        match: false
+    flag: pii_exfiltration_attempt
+
+  - name: escalate_below_margin_floor
+    priority: 50
+    action: HUMAN_REVIEW
+    description: Quote below 35% gross margin floor — owner approval required
+    conditions:
+      - source: agentmarshal
+        field: tool_call
+        match: send_quote
+      - source: agentmarshal
+        field: quote_margin
+        less_than: 0.35
+    escalate_to: operator
+    flag: below_margin_floor
+
+  - name: escalate_quote_above_cap
+    priority: 50
+    action: HUMAN_REVIEW
+    description: Quote above $20K per-quote cap — owner approval required
+    conditions:
+      - source: agentmarshal
+        field: tool_call
+        match: send_quote
+      - source: agentmarshal
+        field: quote_amount
+        greater_than: 20000
+    escalate_to: operator
+    flag: above_quote_cap
+
+default_action: ALLOW
+
+audit:
+  log_all_decisions: true
+  retention_days: 365
+  include_lobstertrap_metadata: true
+  include_declared_vs_detected_diff: true

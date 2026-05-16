@@ -110,7 +110,7 @@ Agent (OpenAI-compat client)
     ↓ chat completion request
 Lobster Trap reverse proxy (:8080)
     ↓ DPI on prompt; forwards to LLM backend
-    ↓ (Ollama default; Gemini Pro / GPT / any OpenAI-compat supported)
+    ↓ (Ollama for local dev; Groq, OpenAI, or any OpenAI-compat endpoint in production)
     ↓ embeds inspection metadata in response:
     ↓ risk_score, intent_category, injection/obfuscation flags
 AgentMarshal Policy Engine
@@ -132,7 +132,7 @@ Defense-in-depth: prompt-layer inspection (Lobster Trap) + policy-layer enforcem
 - **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui
 - **Policy engine:** Custom TypeScript, YAML-driven, first-match-wins evaluator with 8 matcher operators
 - **Inspection layer:** Veea Lobster Trap (Go sidecar, MIT, unmodified)
-- **LLM backend:** OpenAI-compatible — runs locally on Ollama by default; supports Gemini Pro, GPT, and any compat endpoint
+- **LLM backend:** OpenAI-compatible — Ollama for local dev, Groq in production, supports OpenAI or any compat endpoint
 - **Storage:** SQLite via better-sqlite3 (audit log)
 
 ## Run it locally
@@ -176,6 +176,10 @@ Expected output:
 [smoke-bec] verdict=DENY rules_fired=[block_prompt_injection]
 [smoke-bec] audit row id=<N> written to data/agentmarshal.db
 ```
+
+## Deploy
+
+See `Dockerfile`, `fly.toml`, and `entrypoint.sh` for the production deploy. The live demo at [demo.agentmarshal.dev](https://demo.agentmarshal.dev) runs on Fly.io with Groq as the LLM backend.
 
 ## On Lobster Trap
 

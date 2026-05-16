@@ -19,9 +19,14 @@
 import type { LobsterTrapMetadata } from '@/types';
 
 const DEFAULT_BASE = 'http://localhost:8080';
+const DEFAULT_CHAT_PATH = '/v1/chat/completions';
 
 export function proxyUrl(): string {
   return process.env.LT_PROXY_URL ?? DEFAULT_BASE;
+}
+
+export function chatPath(): string {
+  return process.env.LT_CHAT_PATH ?? DEFAULT_CHAT_PATH;
 }
 
 interface LTIngressEnvelope {
@@ -35,13 +40,30 @@ interface LTChatResponse {
 }
 
 export async function inspect(text: string): Promise<LobsterTrapMetadata> {
-  const url = `${proxyUrl()}/v1/chat/completions`;
+  // LT path-passthrough: LT's reverse proxy preserves the request path when
+  // forwarding to the backend. For Groq (path /openai/v1/chat/completions)
+  // we need LT_CHAT_PATH overridden; for local Ollama the default is fine.
+  const url = `${proxyUrl()}${chatPath()}`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    // Force uncompressed upstream responses. Go's ReverseProxy forwards our
+    // Accept-Encoding to the backend, which means Groq returns gzip. LT's
+    // metadata injector then can't parse the body and falls back to passing
+    // the bare upstream bytes through, stripping the _lobstertrap envelope.
+    'Accept-Encoding': 'identity',
+  };
+  // When LT_API_KEY is set (Fly/prod), pass it through so LT can forward
+  // it as the upstream auth (e.g. Groq). Unset in local dev with Ollama.
+  if (process.env.LT_API_KEY) {
+    headers['Authorization'] = `Bearer ${process.env.LT_API_KEY}`;
+  }
 
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model: process.env.LT_MODEL ?? 'llama3.2:1b',
         messages: [{ role: 'user', content: text }],

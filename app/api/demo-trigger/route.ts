@@ -1,11 +1,11 @@
 // POST /api/demo-trigger
 //
 // Body: { delayMs?: number } (default 0, clamped to [0, 120000])
-// Fires the demo scenario sequence so the operator sees a realistic working-
-// day arc: a few clean ALLOWs, a HUMAN_REVIEW (margin floor), another ALLOW,
-// then the BEC finale that DENYs. Failures in one scenario do not stop later
-// ones — each result (or error) is collected so the dashboard can animate
-// partial-success demo runs.
+// Fires a focused 3-step demo arc on top of the dashboard's ambient GREEN
+// rotation: YELLOW (margin floor escalation, modal pops) → GREEN (clean
+// scheduling action) → RED (BEC payment redirect, the finale). Failures in
+// one scenario do not stop later ones — each result (or error) is collected
+// so the dashboard can animate partial-success demo runs.
 
 import { NextResponse } from 'next/server';
 
@@ -14,14 +14,7 @@ import type { ScenarioKind } from '@/lib/agents/scenarios';
 
 export const runtime = 'nodejs';
 
-const ORDER: ScenarioKind[] = [
-  'GREEN_INVOICE',  // 1. comms routes a clean invoice
-  'GREEN_REVIEW',   // 2. follow_up sends review request
-  'GREEN',          // 3. voice_scheduling books appointment
-  'YELLOW',         // 4. quoting margin floor escalation (modal pops)
-  'GREEN_CLAIM',    // 5. claims replies to adjuster (after the YELLOW)
-  'RED',            // 6. comms BEC payment redirect (the finale)
-];
+const ORDER: ScenarioKind[] = ['YELLOW', 'GREEN', 'RED'];
 const MAX_DELAY_MS = 120000;
 
 type ResultEntry = ScenarioRunResult | { scenarioId: ScenarioKind; error: string };

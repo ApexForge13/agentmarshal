@@ -221,41 +221,40 @@ function buildEntries(now: number): SeedEntry[] {
       timestamp: at(165),
     },
 
-    // 7 · claims — 2h30m ago — HUMAN_REVIEW supplement above threshold
+    // 7 · quoting — 2h30m ago — HUMAN_REVIEW margin floor escalation
     {
-      agentId: 'claims',
-      declaredScope:
-        'read_adjuster_email, generate_supplement_doc, reference_code_requirements, reply_to_adjuster',
-      declaredIntent:
-        'Generate $6,800 storm damage supplement · code-required decking upgrade',
-      detectedIntent: 'claim_supplement_generation',
+      agentId: 'quoting',
+      declaredScope: 'draft_quote, send_quote, apply_discount_up_to_10_percent',
+      declaredIntent: 'Escalated $11,200 quote · 31% margin · below 35% floor',
+      detectedIntent: 'quote_generation',
       action: 'HUMAN_REVIEW',
       rulesFired: [
         {
-          name: 'escalate_claim_supplement_review',
-          flag: 'supplement_above_auto_approve',
-          description: 'Claim supplement above auto-approve threshold',
+          name: 'escalate_below_margin_floor',
+          flag: 'below_margin_floor',
+          description:
+            'Quote below 35% gross margin floor — owner approval required',
         },
       ],
       attemptedAction: {
-        tool: 'supplement_doc_generate',
+        tool: 'email_send_quote',
         args: {
-          claim_id: '2024-1102',
-          customer: 'Reyes',
-          insurer: 'State Farm',
-          line_item: 'OSB decking replacement (IRC R803.2.1 code upgrade)',
-          amount: 6800,
+          customer: 'Mr. Doyle',
+          address: '5512 N 7th St, Phoenix AZ',
+          amount: 11200,
+          job: '24-square reroof + ridge vent',
         },
       },
-      lobsterTrapMetadata: cleanLT({ token_count: 118 }),
+      lobsterTrapMetadata: cleanLT({ token_count: 82 }),
       agentmarshalContext: {
-        tool_call: 'supplement_doc_generate',
-        supplement_amount: 6800,
+        tool_call: 'send_quote',
+        quote_amount: 11200,
+        margin_pct: 31,
       },
       metadata: { escalate_to: 'operator' },
       rawInput:
-        'Adjuster requested supplement for code-required decking upgrade on Reyes property. Storm uncovered rotted decking; IRC R803.2.1 requires replacement. Estimated $6,800.',
-      dollarImpact: 6800,
+        'Generate quote for Mr. Doyle at 5512 N 7th St, Phoenix: 24-square reroof with ridge vent replacement, architectural asphalt. Customer asked us to match a competitor bid that came in tight on materials.',
+      dollarImpact: 11200,
       timestamp: at(150),
     },
 

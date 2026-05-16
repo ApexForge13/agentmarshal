@@ -12,6 +12,7 @@ import { AuditLog } from '@/components/AuditLog';
 import { EscalationModal } from '@/components/EscalationModal';
 import { HeroBlockCard } from '@/components/HeroBlockCard';
 import { PolicyEditor } from '@/components/PolicyEditor';
+import type { ScenarioKind } from '@/lib/agents/scenarios';
 import { agentCategory } from '@/lib/dashboard-helpers';
 import { cn } from '@/lib/utils';
 import type { Action, AgentDeclaration, AuditEntry } from '@/types';
@@ -27,6 +28,18 @@ export interface DashboardProps {
 }
 
 const POLL_INTERVAL_MS = 1500;
+const AMBIENT_INITIAL_DELAY_MS = 8000;
+const AMBIENT_INTERVAL_MS = 10000;
+const AMBIENT_ROTATION: ScenarioKind[] = [
+  'GREEN',
+  'GREEN_INVOICE',
+  'GREEN_REVIEW',
+  'GREEN_CLAIM',
+];
+// Hold the hero pinned on the demo's final scenario (the RED BEC block) for
+// this long after the demo-trigger fetch resolves. Ambient rotation stays
+// paused for the duration so the operator can narrate over a static frame.
+const DEMO_DWELL_MS = 90000;
 const ACTION_TO_STATUS: Record<Action, AgentStatus> = {
   ALLOW: 'active',
   HUMAN_REVIEW: 'review',
@@ -48,6 +61,15 @@ export function Dashboard({
     new Date().toISOString().replace(/\.\d{3}/, ''),
   );
   const lastEscalatedIdRef = useRef<number | null>(null);
+  // Highest audit id present at component mount. Set once after the first
+  // poll lands. The auto-open modal effect ignores any HUMAN_REVIEW row at or
+  // below this baseline, so historical/seeded escalations don't pop the modal
+  // on page load — only escalations from the live demo run do.
+  const baselineMaxIdRef = useRef<number | null>(null);
+  // Rotation cursor for the ambient GREEN firer. Persists across re-renders
+  // and across pauses (demo running → resumed) so we don't reset to the same
+  // scenario every time.
+  const ambientCursorRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +79,14 @@ export function Dashboard({
         if (!res.ok) return;
         const data = (await res.json()) as { entries: AuditEntry[] };
         if (cancelled) return;
-        setEntries(data.entries ?? []);
+        const next = data.entries ?? [];
+        if (baselineMaxIdRef.current === null) {
+          baselineMaxIdRef.current = next.reduce(
+            (m, e) => (e.id > m ? e.id : m),
+            0,
+          );
+        }
+        setEntries(next);
         setLastReload(new Date().toISOString().replace(/\.\d{3}/, ''));
       } catch {
         // network blips are fine — next tick retries
@@ -71,15 +100,62 @@ export function Dashboard({
     };
   }, []);
 
-  // Auto-open the escalation modal when a fresh HUMAN_REVIEW row lands.
+  // Auto-open the escalation modal when a fresh HUMAN_REVIEW row lands. Gated
+  // on baselineMaxIdRef so seeded history never auto-pops on first load.
   useEffect(() => {
-    const latestReview = entries.find((e) => e.action === 'HUMAN_REVIEW');
+    const baseline = baselineMaxIdRef.current;
+    if (baseline === null) return;
+    const latestReview = entries.find(
+      (e) => e.action === 'HUMAN_REVIEW' && e.id > baseline,
+    );
     if (!latestReview) return;
     if (lastEscalatedIdRef.current === latestReview.id) return;
     lastEscalatedIdRef.current = latestReview.id;
     const t = setTimeout(() => setEscalationEntry(latestReview), 1000);
     return () => clearTimeout(t);
   }, [entries]);
+
+  // Ambient GREEN rotation. Fires one scenario every AMBIENT_INTERVAL_MS so
+  // the activity feed never goes quiet. First fire is delayed by
+  // AMBIENT_INITIAL_DELAY_MS so the seeded history is readable before new
+  // rows start landing. Paused while the manual demo is running so the demo's
+  // hero-card sequence isn't bumped by an ambient row.
+  useEffect(() => {
+    if (isDemoRunning) return;
+
+    let cancelled = false;
+    let initialTimer: ReturnType<typeof setTimeout> | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    async function fire() {
+      if (cancelled) return;
+      const scenario =
+        AMBIENT_ROTATION[ambientCursorRef.current % AMBIENT_ROTATION.length];
+      ambientCursorRef.current += 1;
+      try {
+        await fetch('/api/ambient-fire', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ scenario }),
+        });
+      } catch {
+        // ambient failures are non-fatal — the next tick retries with the
+        // next scenario in the rotation
+      }
+    }
+
+    initialTimer = setTimeout(() => {
+      if (cancelled) return;
+      void fire();
+      intervalId = setInterval(() => void fire(), AMBIENT_INTERVAL_MS);
+    }, AMBIENT_INITIAL_DELAY_MS);
+
+    return () => {
+      cancelled = true;
+      if (initialTimer) clearTimeout(initialTimer);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isDemoRunning]);
 
   const featuredEntry = entries[0] ?? null;
 
@@ -108,6 +184,9 @@ export function Dashboard({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ delayMs: 15000 }),
       });
+      // Hold isDemoRunning true past the last scenario so the hero card stays
+      // pinned on RED and ambient rotation doesn't bump it mid-narration.
+      await new Promise((resolve) => setTimeout(resolve, DEMO_DWELL_MS));
     } catch {
       // demo failure is non-fatal; surface only via polling
     } finally {

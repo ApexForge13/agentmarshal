@@ -56,7 +56,7 @@ export function AgentCard({ agent, status, category, currentTask }: AgentCardPro
         </span>
       </div>
       <dl className="mt-3 space-y-1.5 text-[11px] leading-tight">
-        <Row label="Model" value="gemini-2.5-pro" mono />
+        <Row label="Model" value="llama-3.1-8b-instant" mono />
         <Row label="Category" value={category} />
       </dl>
       <div className="mt-3 border-t border-zinc-800 pt-2">

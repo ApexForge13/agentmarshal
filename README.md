@@ -6,7 +6,6 @@
 
 🌐 **Site:** [agentmarshal.dev](https://agentmarshal.dev)
 ▶️ **Live demo:** [demo.agentmarshal.dev](https://demo.agentmarshal.dev)
-🎥 **Demo video:** *(link after recording)*
 📦 **Repo:** [github.com/ApexForge13/agentmarshal](https://github.com/ApexForge13/agentmarshal)
 
 Submission for the **TechEx — Transforming Enterprise Through AI** hackathon, Track 1: Agent Security & AI Governance (powered by Veea).

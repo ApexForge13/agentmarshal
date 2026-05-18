@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentmarshal.dev/schema/scope-contract/v0.1/audit-record.schema.json",
+  "title": "Scope Contract Audit Record",
+  "description": "Normative audit record produced by a Scope Contract evaluation. Captures the full request, the response, the evaluation path, per-predicate evaluation trace, and reserved provenance for v0.2 cryptographic signing. Implementations MUST produce a conformant audit record for every evaluation. License: MIT (SPDX-License-Identifier: MIT). Part of AgentMarshal — github.com/ApexForge13/agentmarshal.",
+  "type": "object",
+
+  "required": [
+    "audit_record_version", "evaluation_id", "agent_id", "contract_id",
+    "contract_version", "evaluated_at", "request", "response",
+    "decision", "evaluation_path", "logged_at"
+  ],
+
+  "properties": {
+    "audit_record_version": { "description": "Version of the audit record schema this record conforms to.", "type": "string", "const": "0.1" },
+    "evaluation_id": { "description": "Globally unique identifier for this single evaluation event. RECOMMENDED: UUIDv7.", "type": "string", "minLength": 1, "maxLength": 512 },
+    "tenant_id": { "description": "Operator tenant namespace, echoed from the contract. REQUIRED in multi-tenant deployments.", "type": "string", "pattern": "^[a-z0-9][a-z0-9_/-]{0,126}[a-z0-9]$" },
+    "agent_id": { "description": "Agent identity from the contract being evaluated against.", "type": "string", "minLength": 1, "maxLength": 2048 },
+    "contract_id": { "description": "contract_id of the Scope Contract this evaluation was performed against.", "type": "string", "minLength": 1, "maxLength": 512 },
+    "contract_version": { "description": "version field from the contract — preserves which version of a supersession chain was active.", "type": "integer", "minimum": 1 },
+    "evaluated_at": { "description": "ISO 8601 timestamp at which evaluation was performed. MAY differ from logged_at if audit writes are deferred or batched.", "type": "string", "format": "date-time" },
+
+    "request": {
+      "description": "The AuthZEN-shaped request that was evaluated. Echoed verbatim for reproducibility.",
+      "type": "object",
+      "required": ["subject", "action", "resource"],
+      "properties": {
+        "subject":  { "type": "object" },
+        "action":   { "type": "object" },
+        "resource": { "type": "object" },
+        "context":  { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+
+    "response": {
+      "description": "The AuthZEN-shaped response that was returned to the PEP. Echoed verbatim. Combined with 'request' this enables exact wire-level reproduction of the evaluation.",
+      "type": "object",
+      "required": ["decision"],
+      "properties": {
+        "decision": { "type": "boolean" },
+        "context":  { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+
+    "decision": { "description": "Scope Contract-level decision. Maps to response.decision: allow→true; deny→false; escalate→false (with step-up context populated in response.context).", "type": "string", "enum": ["allow", "deny", "escalate"] },
+    "evaluation_path": { "description": "Which evaluation phase produced the decision. 'temporal' indicates the contract was outside its validity window. 'out_of_scope' indicates a hard-deny match before declared_scope evaluation. 'declared_scope' indicates a rule match. 'no_match' indicates implicit DENY (no rule matched, action not in out_of_scope).", "type": "string", "enum": ["temporal", "out_of_scope", "declared_scope", "no_match"] },
+    "matched_rule_id": { "description": "rule_id of the declared_scope rule that matched. REQUIRED when evaluation_path is 'declared_scope'; MUST be null otherwise.", "type": ["string", "null"] },
+    "out_of_scope_term": { "description": "The out_of_scope entry that hard-denied the request. REQUIRED when evaluation_path is 'out_of_scope'; MUST be null otherwise.", "type": ["string", "object", "null"] },
+    "reason_code": { "description": "Stable machine-readable reason code. Populated from the matched rule's Decision.reason_code, or a synthesized code for non-rule paths (e.g., 'OUT_OF_SCOPE_HARD_DENY', 'NO_MATCH_IMPLICIT_DENY', 'CONTRACT_EXPIRED').", "type": "string", "pattern": "^[A-Z0-9_]{1,64}$" },
+    "reason": { "description": "Human-readable reason string. Surfaced in operator review UIs.", "type": "string" },
+
+    "predicate_evaluations": {
+      "description": "Ordered trace of predicate evaluations performed. Useful for debugging false-negative matches and for compliance review. Implementations MUST include all predicates evaluated up to and including the decisive predicate; MAY include predicates that would have been evaluated had earlier ones passed.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/PredicateEvaluation" }
+    },
+
+    "escalation_ticket_id": { "description": "Identifier of the escalation event triggered. REQUIRED when decision is 'escalate'; MUST be null otherwise.", "type": ["string", "null"] },
+    "output_hash": { "description": "SHA-256 hash of the canonicalized response (decision + context). Enables dedup detection and tamper-evidence. Format: 'sha256:<hex>'.", "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "request_id": { "description": "AuthZEN X-Request-ID correlation identifier echoed from the request, when present. Enables joining with PEP-side traces.", "type": "string" },
+    "logged_at": { "description": "ISO 8601 timestamp at which the audit record was persisted. MAY differ from evaluated_at if audit writes are deferred or batched.", "type": "string", "format": "date-time" },
+    "provenance": { "description": "Reserved for v0.2 cryptographic signing of audit records. MUST be null in v0.1. v0.2 will define a signature wrapper with issuer DID, signature algorithm, and signed canonical hash of the audit record contents.", "type": "null" },
+
+    "extensions": {
+      "description": "Optional namespaced extensions matching the contract's extension namespaces (e.g., 'tt' for TextThread audit_log integration fields).",
+      "type": "object",
+      "patternProperties": {
+        "^(tt|brightdata|ap2|wimse)$":  { "type": "object" },
+        "^x-[a-z0-9_-]+$":              { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+
+  "allOf": [
+    {
+      "if":   { "properties": { "evaluation_path": { "const": "declared_scope" } } },
+      "then": { "required": ["matched_rule_id"], "properties": { "matched_rule_id": { "type": "string" } } }
+    },
+    {
+      "if":   { "properties": { "evaluation_path": { "const": "out_of_scope" } } },
+      "then": { "required": ["out_of_scope_term"], "properties": { "out_of_scope_term": { "type": ["string", "object"] } } }
+    },
+    {
+      "if":   { "properties": { "decision": { "const": "escalate" } } },
+      "then": { "required": ["escalation_ticket_id"], "properties": { "escalation_ticket_id": { "type": "string" } } }
+    }
+  ],
+
+  "$defs": {
+    "PredicateEvaluation": {
+      "description": "Per-predicate evaluation record. Captures the predicate path, the constraint applied, the actual value from the request, the pass/fail result, and an optional reason.",
+      "type": "object",
+      "required": ["rule_id", "predicate_path", "constraint", "result"],
+      "properties": {
+        "rule_id": { "description": "rule_id within which this predicate was evaluated. Null when evaluation_path is 'out_of_scope' or 'temporal'.", "type": ["string", "null"] },
+        "predicate_path": { "description": "Dot-path to the predicate within the match block (e.g., 'action.properties.amount', 'resource.properties.vendor_ref').", "type": "string" },
+        "constraint": { "description": "Verbatim copy of the predicate value from the contract at predicate_path. May be a literal or an operator object." },
+        "actual_value": { "description": "The value from the request at predicate_path. May be null when the property is absent (relevant for 'exists: false' matches)." },
+        "result": { "description": "Whether this predicate passed or failed.", "type": "string", "enum": ["pass", "fail", "skipped"] },
+        "reason": { "description": "Optional human-readable reason for fail/skipped results (e.g., 'amount exceeds max', 'currency mismatch', 'property absent').", "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

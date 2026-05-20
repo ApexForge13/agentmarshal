@@ -8,6 +8,8 @@ import { validateAuthZenRequest } from '@/lib/authzen/schema-validator';
 import { evaluateRequest, toAuthZenResponse } from '@/lib/authzen/evaluate';
 import { loadContractForAgent } from '@/lib/authzen/contracts';
 import { recordEvaluation } from '@/lib/authzen/audit';
+// Side-effect import: registers TCPA composite predicates with the dispatch registry.
+import '@/lib/compliance/predicates/tcpa';
 import type { AuthZenRequest } from '@/types/authzen';
 
 export const runtime = 'nodejs';

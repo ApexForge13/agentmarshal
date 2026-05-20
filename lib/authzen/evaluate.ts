@@ -1,7 +1,19 @@
 // Full Scope Contract evaluation.
 // Phases: temporal → out_of_scope → declared_scope (first-match-wins) → no_match.
+//
+// Day 4 Bubble 1a: composite predicates are first-class. Rules may declare
+// composite_checks; each composite produces a CompositePredicateEvaluation entry,
+// and isAllowable() gates the rule (any fail/stub blocks the rule's allow effect).
 
+import { randomUUID } from 'crypto';
 import { evaluatePredicate } from './predicates';
+import {
+  getComposite,
+  validateCompositeInput,
+  isAllowable,
+  type CompositePredicateEvaluation,
+} from './composite-dispatch';
+import { NULL_EMITTER, type EvalContext, type AuditEmitter } from './eval-context';
 import type {
   AuthZenRequest,
   AuthZenResponse,
@@ -18,15 +30,28 @@ import type {
 export interface EvaluateOptions {
   /** Override "now" for deterministic tests. Default: new Date(). */
   now?: Date;
+  /** Override the tenant_id for EvalContext. Defaults to contract.tenant_id or 'default'. */
+  tenant_id?: string;
+  /** Override the request_id for EvalContext. Defaults to a fresh UUID. */
+  request_id?: string;
+  /** Audit emitter for composite predicates. Defaults to NULL_EMITTER. */
+  audit?: AuditEmitter;
 }
 
 export async function evaluateRequest(
   request: AuthZenRequest,
   contract: ScopeContract,
-  options: EvaluateOptions = {}
+  options: EvaluateOptions = {},
 ): Promise<EvaluationResult> {
   const now = options.now ?? new Date();
   const predicateContext: PredicateContext = { now };
+  const evalContext: EvalContext = {
+    now,
+    tenant_id: options.tenant_id ?? contract.tenant_id ?? 'default',
+    agent_id: contract.agent_id,
+    request_id: options.request_id ?? randomUUID(),
+    audit: options.audit ?? NULL_EMITTER,
+  };
 
   // Phase 1: Temporal
   if (contract.not_before) {
@@ -52,22 +77,38 @@ export async function evaluateRequest(
   }
 
   // Phase 3: declared_scope first-match-wins
-  const allEvaluations: PredicateEvaluation[] = [];
+  const allPredicateEvals: PredicateEvaluation[] = [];
+  const allCompositeEvals: CompositePredicateEvaluation[] = [];
+
   for (const rule of contract.declared_scope) {
-    const ruleEvals: PredicateEvaluation[] = [];
-    const matched = ruleMatches(rule, request, predicateContext, ruleEvals);
-    allEvaluations.push(...ruleEvals);
-    if (matched) {
-      return {
-        effect: rule.decision.effect,
-        evaluation_path: 'declared_scope',
-        matched_rule_id: rule.rule_id,
-        out_of_scope_term: null,
-        reason_code: rule.decision.reason_code || synthReasonCode(rule.decision.effect),
-        reason: rule.decision.reason || '',
-        predicate_evaluations: allEvaluations,
-      };
+    const rulePredEvals: PredicateEvaluation[] = [];
+    const ruleCompEvals: CompositePredicateEvaluation[] = [];
+
+    const standardMatched = ruleMatchesStandard(rule, request, predicateContext, rulePredEvals);
+    allPredicateEvals.push(...rulePredEvals);
+
+    if (!standardMatched) {
+      continue;
     }
+
+    if (rule.composite_checks && rule.composite_checks.length > 0) {
+      await runCompositeChecks(rule.composite_checks, evalContext, ruleCompEvals);
+      allCompositeEvals.push(...ruleCompEvals);
+      if (!isAllowable(ruleCompEvals)) {
+        continue;
+      }
+    }
+
+    return {
+      effect: rule.decision.effect,
+      evaluation_path: 'declared_scope',
+      matched_rule_id: rule.rule_id,
+      out_of_scope_term: null,
+      reason_code: rule.decision.reason_code || synthReasonCode(rule.decision.effect),
+      reason: rule.decision.reason || '',
+      predicate_evaluations: allPredicateEvals,
+      composite_evaluations: allCompositeEvals.length > 0 ? allCompositeEvals : undefined,
+    };
   }
 
   // Phase 4: no_match implicit deny
@@ -78,8 +119,40 @@ export async function evaluateRequest(
     out_of_scope_term: null,
     reason_code: 'NO_MATCH_IMPLICIT_DENY',
     reason: 'No declared_scope rule matched; implicit deny per Scope Contract semantics.',
-    predicate_evaluations: allEvaluations,
+    predicate_evaluations: allPredicateEvals,
+    composite_evaluations: allCompositeEvals.length > 0 ? allCompositeEvals : undefined,
   };
+}
+
+async function runCompositeChecks(
+  checks: Array<{ predicate: string; input: unknown }>,
+  ctx: EvalContext,
+  evals: CompositePredicateEvaluation[],
+): Promise<void> {
+  for (const check of checks) {
+    const composite = getComposite(check.predicate);
+    if (!composite) {
+      evals.push({
+        predicate: check.predicate,
+        result: 'fail',
+        reason: `unknown composite predicate: ${check.predicate}`,
+        details: { available_via: 'registerComposite()' },
+      });
+      continue;
+    }
+    const validation = validateCompositeInput(check.predicate, check.input);
+    if (!validation.valid) {
+      evals.push({
+        predicate: check.predicate,
+        result: 'fail',
+        reason: `composite input invalid: ${validation.errors.join('; ')}`,
+        details: { errors: validation.errors },
+      });
+      continue;
+    }
+    const outcome = await composite.evaluate(check.input, ctx);
+    evals.push(outcome);
+  }
 }
 
 function temporalDeny(reason_code: string, reason: string): EvaluationResult {
@@ -108,9 +181,12 @@ function outOfScopeDeny(term: OutOfScopeEntry): EvaluationResult {
 
 function synthReasonCode(effect: ScopeContractEffect): string {
   switch (effect) {
-    case 'allow': return 'ALLOWED_BY_RULE';
-    case 'deny': return 'DENIED_BY_RULE';
-    case 'escalate': return 'ESCALATED_BY_RULE';
+    case 'allow':
+      return 'ALLOWED_BY_RULE';
+    case 'deny':
+      return 'DENIED_BY_RULE';
+    case 'escalate':
+      return 'ESCALATED_BY_RULE';
   }
 }
 
@@ -132,11 +208,11 @@ function matchesOutOfScopeTerm(term: OutOfScopeEntry, request: AuthZenRequest): 
   return false;
 }
 
-function ruleMatches(
+function ruleMatchesStandard(
   rule: ScopeRule,
   request: AuthZenRequest,
   predicateContext: PredicateContext,
-  evals: PredicateEvaluation[]
+  evals: PredicateEvaluation[],
 ): boolean {
   const blocks = [
     { name: 'subject', predicates: rule.match.subject, actual: request.subject as unknown },
@@ -147,7 +223,14 @@ function ruleMatches(
 
   for (const block of blocks) {
     if (!block.predicates) continue;
-    const passed = entityMatches(block.name, block.predicates, block.actual, predicateContext, rule.rule_id, evals);
+    const passed = entityMatches(
+      block.name,
+      block.predicates,
+      block.actual,
+      predicateContext,
+      rule.rule_id,
+      evals,
+    );
     if (!passed) return false;
   }
   return true;
@@ -159,11 +242,10 @@ function entityMatches(
   actualEntity: unknown,
   predicateContext: PredicateContext,
   ruleId: string,
-  evals: PredicateEvaluation[]
+  evals: PredicateEvaluation[],
 ): boolean {
   const entity = (actualEntity ?? {}) as Record<string, unknown>;
 
-  // Top-level entity field predicates
   for (const field of ['type', 'id', 'name', 'capability_category', 'vendor_ref'] as const) {
     const constraint = predicates[field];
     if (constraint === undefined) continue;
@@ -180,7 +262,6 @@ function entityMatches(
     if (outcome.result === 'fail') return false;
   }
 
-  // Nested properties
   if (predicates.properties) {
     const actualProps = (entity['properties'] ?? {}) as Record<string, unknown>;
     for (const [propKey, propConstraint] of Object.entries(predicates.properties)) {

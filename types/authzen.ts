@@ -47,6 +47,17 @@ export interface EvaluationResult {
   reason_code: string;
   reason: string;
   predicate_evaluations: PredicateEvaluation[];
+  /**
+   * Composite predicate evaluations produced during this evaluation, in order.
+   * Structurally identical to CompositePredicateEvaluation in lib/authzen/composite-dispatch.ts
+   * (kept inline to avoid a types -> lib import cycle through audit-record.ts).
+   */
+  composite_evaluations?: Array<{
+    predicate: string;
+    result: 'pass' | 'fail' | 'stub';
+    reason: string;
+    details: Record<string, unknown>;
+  }>;
 }
 
 /** Per-predicate evaluation record — matches audit-record schema PredicateEvaluation $def. */
@@ -148,7 +159,20 @@ export interface ScopeRule {
   rule_id: string;
   description?: string;
   match: MatchPredicates;
+  /**
+   * Optional composite predicate checks. All must pass (via isAllowable) for the
+   * rule's decision.effect to apply. Any fail/stub causes the rule to be treated
+   * as non-matching (evaluator continues to the next rule).
+   */
+  composite_checks?: CompositeCheck[];
   decision: Decision;
+}
+
+export interface CompositeCheck {
+  /** Name of the composite predicate as registered via registerComposite. */
+  predicate: string;
+  /** Input passed to the composite's evaluate(). Validated against the composite's inputSchema. */
+  input: unknown;
 }
 
 export interface MatchPredicates {

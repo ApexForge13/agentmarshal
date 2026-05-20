@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { evaluatePredicate } from '../lib/authzen/predicates';
+import type { TimeWindowConstraint } from '../types/authzen';
 
 describe('evaluatePredicate — literal equality', () => {
   it('passes when string literal equals actual', () => {
@@ -180,10 +181,10 @@ describe('evaluatePredicate — implicit presence requirement', () => {
 });
 
 describe('evaluatePredicate — time_window (TCPA quiet hours analog)', () => {
-  const easternBusinessHours = {
+  const easternBusinessHours: TimeWindowConstraint = {
     timezone: 'America/New_York',
     windows: [
-      { start: '09:00', end: '17:00', weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'] as const },
+      { start: '09:00', end: '17:00', weekdays: ['mon', 'tue', 'wed', 'thu', 'fri'] },
     ],
   };
 

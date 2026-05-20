@@ -11,7 +11,7 @@
 
 Submission for the **TechEx — Transforming Enterprise Through AI** hackathon, Track 1: Agent Security & AI Governance (powered by Veea).
 
-> **Status: MVP / V0.** The governance platform — policy engine, audit log, Lobster Trap integration, and dashboard — works end-to-end. The agent fleet in the demo is simulated by design: bringing your own agents is the integration model. See [What's real vs. what's simulated](#whats-real-vs-whats-simulated) and the [Roadmap](#roadmap) for what comes next.
+> **Status: v0.2 in progress.** The v0.1 platform — policy engine, audit log, Lobster Trap integration, and dashboard — works end-to-end and shipped for the TechEx hackathon. The agent fleet in the demo is simulated by design: bringing your own agents is the integration model. v0.2 introduces persistent Scope Contracts, structured audit records, and a TCPA/CAN-SPAM Compliance Receipt. See [What's new in v0.2](#whats-new-in-v02-in-progress), [What's real vs. what's simulated](#whats-real-vs-whats-simulated), and the [Roadmap](#roadmap) for what comes next.
 
 ---
 
@@ -77,6 +77,17 @@ Being explicit about MVP scope:
 - The 5 agents themselves are scenario fixtures, not autonomous agents. There's no Twilio for voice, no SendGrid for email, no Stripe for payments, no Jobber or ServiceTitan integration. Each scenario has a hardcoded payload that drives the policy evaluation path.
 
 **Why that's the right scoping decision:** AgentMarshal is the governance platform. The agents are the customer's domain. In production, a customer's real agents — built on Mastra, LangGraph, AutoGen, CrewAI, or in-house — instrument every tool call to POST to `/api/agent-action` first. AgentMarshal returns the decision. The customer's agent acts on it. The platform doesn't need to own the agents to govern them. That separation is what makes the product horizontal.
+
+## What's new in v0.2 (in progress)
+
+v0.1 treated each agent's scope as engine configuration. v0.2 promotes scope to a first-class artifact — the **Scope Contract** — issued by the operator and evaluated against an AuthZEN-shaped request.
+
+- **Scope Contracts.** Declarative, versioned policy artifacts attached to an agent. Specify what actions are authorized, what's hard-denied, escalation routing, validity windows, and supersession chains so operators can amend authority without losing audit history. Schema: [`spec/v0.1/scope-contract.schema.json`](spec/v0.1/scope-contract.schema.json).
+- **Audit records as a spec.** A companion schema defines the structured audit record produced by every evaluation — full request/response echo, evaluation path, per-predicate trace, and a reserved provenance field for forthcoming cryptographic signing. Schema: [`spec/v0.1/audit-record.schema.json`](spec/v0.1/audit-record.schema.json).
+- **TCPA/CAN-SPAM Compliance Receipt.** Voice, SMS, and email actions earn a Compliance Receipt distinct from the general audit record — a categorical separator so compliance teams can prove an outbound communication carried the consents and time-window constraints the law requires. Receipt schema lands during v0.2.
+- **AP2 aggregate-cap extension.** The Scope Contract carries an extension namespace for AP2 Mandate issuers and declared aggregate spend caps, so per-transaction AP2 intent capture and per-period scope-level caps compose cleanly.
+
+The v0.1 manifest format will be superseded once Scope Contracts replace it end-to-end.
 
 ## Roadmap
 

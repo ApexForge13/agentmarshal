@@ -40,7 +40,7 @@ describe('AuthZEN evaluation endpoint (Day 2 scaffold)', () => {
     const body = await response.json();
     expect(body.decision).toBe(true);
     expect(body.context).toMatchObject({
-      reason_code: 'STUB_ALLOW_V0_2_DAY_2',
+      reason_code: 'STUB_PERMISSIVE_ALLOW',
       evaluation_path: 'declared_scope',
     });
   });

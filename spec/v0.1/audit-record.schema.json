@@ -14,7 +14,7 @@
   "properties": {
     "audit_record_version": { "description": "Version of the audit record schema this record conforms to.", "type": "string", "const": "0.1" },
     "evaluation_id": { "description": "Globally unique identifier for this single evaluation event. RECOMMENDED: UUIDv7.", "type": "string", "minLength": 1, "maxLength": 512 },
-    "tenant_id": { "description": "Operator tenant namespace, echoed from the contract. REQUIRED in multi-tenant deployments.", "type": "string", "pattern": "^[a-z0-9][a-z0-9_/-]{0,126}[a-z0-9]$" },
+    "tenant_id": { "description": "Operator tenant namespace, echoed from the contract. REQUIRED in multi-tenant deployments.", "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,62}[a-z0-9]$" },
     "agent_id": { "description": "Agent identity from the contract being evaluated against.", "type": "string", "minLength": 1, "maxLength": 2048 },
     "contract_id": { "description": "contract_id of the Scope Contract this evaluation was performed against.", "type": "string", "minLength": 1, "maxLength": 512 },
     "contract_version": { "description": "version field from the contract — preserves which version of a supersession chain was active.", "type": "integer", "minimum": 1 },

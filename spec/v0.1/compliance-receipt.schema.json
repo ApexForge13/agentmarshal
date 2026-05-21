@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentmarshal.dev/schema/v0.1/compliance-receipt.schema.json",
+  "title": "Compliance Receipt",
+  "description": "Signed, content-addressed, RFC 8785-canonicalized record of a Scope Contract evaluation. Issued for every evaluation (allow, deny, or escalate). Offline-verifiable via embedded algorithm + key_id; algorithm-agile; multi-signature ready; hash-chained per agent. License: MIT (SPDX-License-Identifier: MIT). Part of AgentMarshal — github.com/ApexForge13/agentmarshal.",
+  "type": "object",
+
+  "required": [
+    "receipt_version", "schema_version", "receipt_id", "receipt_hash",
+    "previous_receipt_hash", "canonical_form", "issued_at", "code_version",
+    "contract_id", "contract_version", "tenant_id", "agent_id",
+    "evaluation_id", "request_id", "decision",
+    "predicate_evaluations", "composite_evaluations",
+    "regulatory_state", "signatures"
+  ],
+  "additionalProperties": false,
+
+  "properties": {
+    "receipt_version": {
+      "description": "Compliance Receipt artifact version. Independent of schema_version so a v0.1 receipt format MAY be re-validated against a v0.2 schema if backward-compatible.",
+      "type": "string",
+      "const": "0.1"
+    },
+    "schema_version": {
+      "description": "Version of this JSON Schema document the receipt conforms to. Verifiers MAY select a schema by this field when running against a multi-version verifier.",
+      "type": "string",
+      "const": "0.1"
+    },
+    "receipt_id": {
+      "description": "Globally unique identifier for this receipt. RECOMMENDED: UUIDv4. Distinct from evaluation_id (which is the audit row identifier and MAY be shared by multiple receipts in rare re-issue scenarios).",
+      "type": "string",
+      "format": "uuid"
+    },
+    "receipt_hash": {
+      "description": "SHA-256 hex of the canonicalized receipt body MINUS this field itself. Computed AFTER signatures are appended, over the union of the body and the signatures array. Provides content-addressing and an integrity check independent of signatures.",
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "previous_receipt_hash": {
+      "description": "receipt_hash of the prior receipt in the agent's hash chain, or null when this is the first receipt for the agent (or chain history is not provided). Enables tamper-evident sequencing of an agent's actions over time.",
+      "oneOf": [
+        { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "canonical_form": {
+      "description": "Algorithm used to produce the canonical byte sequence that is signed and hashed. Declared in-band so future canonicalization rotations do not invalidate old receipts.",
+      "type": "string",
+      "const": "rfc8785"
+    },
+
+    "issued_at": {
+      "description": "ISO 8601 UTC timestamp at which the receipt was constructed (after evaluation; before signing). Verifiers MAY use this with regulatory_state.anchor_timestamp to detect replay.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "code_version": {
+      "description": "Identifier of the AgentMarshal codebase version that produced this receipt. RECOMMENDED: 40-char git SHA-1. Falls back to AGENTMARSHAL_CODE_VERSION env var or the literal 'unknown' when git is unavailable.",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "contract_id": {
+      "description": "contract_id of the Scope Contract this evaluation was performed against.",
+      "type": "string",
+      "minLength": 1
+    },
+    "contract_version": {
+      "description": "Version label of the contract that was active at evaluation time. String to allow semver, supersession sequences, or operator-defined version labels.",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "tenant_id": {
+      "description": "Operator tenant namespace, echoed from the contract.",
+      "type": "string",
+      "minLength": 1
+    },
+    "agent_id": {
+      "description": "Agent identity from the contract being evaluated against.",
+      "type": "string",
+      "minLength": 1
+    },
+    "evaluation_id": {
+      "description": "Identifier of the underlying evaluation audit row. Joins the receipt to the full AuthZEN request/response that produced it.",
+      "type": "string",
+      "minLength": 1
+    },
+    "request_id": {
+      "description": "AuthZEN X-Request-ID correlation identifier from the PEP call that triggered evaluation. Joins receipts to PEP-side traces.",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "decision": {
+      "description": "Scope Contract-level decision summary. The reason and reason_code are surfaced verbatim in operator review UIs.",
+      "type": "object",
+      "required": ["effect", "evaluation_path", "matched_rule_id", "reason_code", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "effect": {
+          "description": "Decision applied to the request. 'allow' permits the action; 'deny' blocks it; 'escalate' defers to a human or higher-authority workflow.",
+          "type": "string",
+          "enum": ["allow", "deny", "escalate"]
+        },
+        "evaluation_path": {
+          "description": "Phase of evaluation that produced the decision.",
+          "type": "string",
+          "enum": ["temporal", "out_of_scope", "declared_scope", "no_match"]
+        },
+        "matched_rule_id": {
+          "description": "rule_id of the declared_scope rule that matched. Non-null only when evaluation_path is 'declared_scope'.",
+          "type": ["string", "null"]
+        },
+        "reason_code": {
+          "description": "Stable machine-readable reason code.",
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "description": "Human-readable reason string.",
+          "type": "string"
+        }
+      }
+    },
+
+    "predicate_evaluations": {
+      "description": "Ordered trace of per-rule predicate evaluations performed during this evaluation. Useful for debugging false-negative matches and for compliance review.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/PredicateEvaluation" }
+    },
+    "composite_evaluations": {
+      "description": "Ordered trace of composite predicate evaluations (TCPA, CAN-SPAM, etc.). Composite results other than 'pass' block 'allow' decisions via the fail-safe policy.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/CompositePredicateEvaluation" }
+    },
+
+    "regulatory_state": {
+      "description": "Anchor that ties this receipt to a point-in-time snapshot of external regulatory data (e.g., DNC registry, state quiet-hours tables). When 'pending' is true, no anchor was available; Day 6 Bright Data integration populates real anchors.",
+      "type": "object",
+      "required": ["hash", "pending", "snapshot_source", "anchor_timestamp", "anchor_method"],
+      "additionalProperties": false,
+      "properties": {
+        "hash": {
+          "description": "SHA-256 hex of the canonicalized regulatory snapshot. Null when pending.",
+          "type": ["string", "null"]
+        },
+        "pending": {
+          "description": "True when no regulatory snapshot was available at evaluation time. Verifiers MAY downgrade trust accordingly.",
+          "type": "boolean"
+        },
+        "snapshot_source": {
+          "description": "Identifier of the data source the snapshot was derived from. Null when pending.",
+          "type": ["string", "null"]
+        },
+        "anchor_timestamp": {
+          "description": "ISO 8601 UTC timestamp at which the snapshot was anchored to an external timestamping service. Null when pending or when no external anchor was used.",
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "anchor_method": {
+          "description": "External anchoring method used. 'pending' is the v0.1 default until Day 6 wires real anchors.",
+          "type": ["string", "null"],
+          "enum": ["pending", "rfc3161", "opentimestamps", null]
+        }
+      }
+    },
+
+    "signatures": {
+      "description": "One or more signatures over the canonicalized body (the receipt MINUS receipt_hash and signatures). All listed signatures MUST verify for a receipt to be considered valid.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ReceiptSignature" }
+    }
+  },
+
+  "$defs": {
+    "PredicateEvaluation": {
+      "description": "Per-predicate evaluation record echoed from the AuthZEN evaluator.",
+      "type": "object",
+      "required": ["rule_id", "predicate_path", "constraint", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "description": "rule_id within which this predicate was evaluated. Null when evaluation_path is 'out_of_scope' or 'temporal'.",
+          "type": ["string", "null"]
+        },
+        "predicate_path": {
+          "description": "Dot-path to the predicate within the match block.",
+          "type": "string"
+        },
+        "constraint": {
+          "description": "Verbatim copy of the predicate value from the contract. May be a literal or an operator object."
+        },
+        "actual_value": {
+          "description": "The value from the request at predicate_path. May be null when the property is absent."
+        },
+        "result": {
+          "description": "Whether this predicate passed, failed, or was skipped.",
+          "type": "string",
+          "enum": ["pass", "fail", "skipped"]
+        },
+        "reason": {
+          "description": "Optional human-readable reason for fail/skipped results.",
+          "type": "string"
+        }
+      }
+    },
+
+    "CompositePredicateEvaluation": {
+      "description": "Per-composite predicate evaluation entry (TCPA, CAN-SPAM, etc.).",
+      "type": "object",
+      "required": ["predicate", "result", "reason", "details"],
+      "additionalProperties": false,
+      "properties": {
+        "predicate": {
+          "description": "Registered composite predicate name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "description": "Composite result. 'pass' is allowable; 'fail' and 'stub' block allow under the fail-safe policy.",
+          "type": "string",
+          "enum": ["pass", "fail", "stub"]
+        },
+        "reason": {
+          "description": "Human-readable reason produced by the composite predicate.",
+          "type": "string"
+        },
+        "details": {
+          "description": "Open trace bag from the composite predicate. Schema permits arbitrary keys to keep predicate authors unconstrained.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "ReceiptSignature": {
+      "description": "One signature over the canonical body. signer_role indicates the party; multi-sig means all signatures MUST verify.",
+      "type": "object",
+      "required": ["algorithm", "key_id", "public_key_fingerprint", "signature", "signed_at", "signer_role"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "description": "Signature algorithm. v0.1 supports Ed25519 only; future versions MAY add additional algorithms via enum extension.",
+          "type": "string",
+          "enum": ["ed25519"]
+        },
+        "key_id": {
+          "description": "RFC 7638 JWK thumbprint of the public key used, prefixed with 'am-'. Verifiers resolve this to a public key via the issuer's JWKS endpoint or a cached JWK Set.",
+          "type": "string",
+          "minLength": 1
+        },
+        "public_key_fingerprint": {
+          "description": "SHA-256 hex of the raw 32-byte Ed25519 public key. Provided for human-readable identification and grep-ability; key_id is the canonical lookup identifier.",
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "signature": {
+          "description": "Hex-encoded signature bytes. Length depends on algorithm (Ed25519 = 128 hex chars).",
+          "type": "string",
+          "pattern": "^[a-f0-9]+$"
+        },
+        "signed_at": {
+          "description": "ISO 8601 UTC timestamp at which this signature was produced.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "signer_role": {
+          "description": "Role of the signing party. 'agentmarshal' is the substrate; 'operator' is the agent's principal; 'vendor' is a downstream system that received the authorized action.",
+          "type": "string",
+          "enum": ["agentmarshal", "operator", "vendor"]
+        }
+      }
+    }
+  }
+}

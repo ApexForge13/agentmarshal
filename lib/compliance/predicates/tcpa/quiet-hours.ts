@@ -9,7 +9,6 @@ import type {
   CompositePredicate,
   CompositePredicateEvaluation,
 } from '@/lib/authzen/composite-dispatch';
-import type { EvalContext } from '@/lib/authzen/eval-context';
 import {
   FEDERAL_QUIET_HOURS,
   STATE_QUIET_HOURS,

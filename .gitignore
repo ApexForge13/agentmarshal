@@ -39,6 +39,9 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 
+# local key custody (FileKeyProvider — production uses KMS)
+data/keys/
+
 # vercel
 .vercel
 

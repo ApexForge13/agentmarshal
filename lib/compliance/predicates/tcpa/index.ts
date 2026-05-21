@@ -1,5 +1,7 @@
-// Registers all 6 TCPA composite predicates on import.
-// Side-effect import: route handler imports this module to populate the registry.
+// Registers all 6 TCPA composite predicates.
+// Side-effect import populates the registry; explicit registerAllTcpaComposites()
+// is exported for test setup (clearComposites + re-register) and grep-ability
+// (so tree-shake or rename-refactors surface the registration call site).
 
 import { registerComposite } from '@/lib/authzen/composite-dispatch';
 import { quietHoursPredicate } from './quiet-hours';
@@ -9,12 +11,16 @@ import { revocationPredicate } from './revocation';
 import { callerIdPredicate } from './caller-id';
 import { robocallDisclosurePredicate } from './robocall-disclosure';
 
-registerComposite(quietHoursPredicate);
-registerComposite(dncRegistryPredicate);
-registerComposite(consentPredicate);
-registerComposite(revocationPredicate);
-registerComposite(callerIdPredicate);
-registerComposite(robocallDisclosurePredicate);
+export function registerAllTcpaComposites(): void {
+  registerComposite(quietHoursPredicate);
+  registerComposite(dncRegistryPredicate);
+  registerComposite(consentPredicate);
+  registerComposite(revocationPredicate);
+  registerComposite(callerIdPredicate);
+  registerComposite(robocallDisclosurePredicate);
+}
+
+registerAllTcpaComposites();
 
 export {
   quietHoursPredicate,

@@ -37,7 +37,7 @@ const INPUT_SCHEMA = {
   additionalProperties: false,
 };
 
-const PREDICATE_NAME = 'tcpa_quiet_hours_check';
+const PREDICATE_NAME = 'tcpa_quiet_hours_respected';
 
 export const quietHoursPredicate: CompositePredicate<QuietHoursInput> = {
   name: PREDICATE_NAME,

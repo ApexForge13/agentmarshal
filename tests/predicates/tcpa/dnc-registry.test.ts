@@ -30,7 +30,7 @@ describe('TCPA DNC registry predicate (Bubble 1a stub)', () => {
       makeCtx(),
     );
     expect(result.result).toBe('stub');
-    expect(result.predicate).toBe('tcpa_dnc_registry_check');
+    expect(result.predicate).toBe('tcpa_dnc_registry_clear');
     expect(result.reason).toMatch(/not yet implemented/i);
   });
 
@@ -45,7 +45,7 @@ describe('TCPA DNC registry predicate (Bubble 1a stub)', () => {
 
   it('isAllowable returns false when the DNC stub result is in the trace', () => {
     const evals: CompositePredicateEvaluation[] = [
-      { predicate: 'tcpa_dnc_registry_check', result: 'stub', reason: '', details: {} },
+      { predicate: 'tcpa_dnc_registry_clear', result: 'stub', reason: '', details: {} },
     ];
     expect(isAllowable(evals)).toBe(false);
   });

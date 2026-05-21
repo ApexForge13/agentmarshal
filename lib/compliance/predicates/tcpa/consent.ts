@@ -29,7 +29,7 @@ const INPUT_SCHEMA = {
   additionalProperties: false,
 };
 
-const PREDICATE_NAME = 'tcpa_consent_check';
+const PREDICATE_NAME = 'tcpa_consent_present';
 
 export const consentPredicate: CompositePredicate<ConsentInput> = {
   name: PREDICATE_NAME,

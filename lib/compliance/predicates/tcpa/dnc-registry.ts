@@ -22,7 +22,7 @@ const INPUT_SCHEMA = {
   additionalProperties: false,
 };
 
-const PREDICATE_NAME = 'tcpa_dnc_registry_check';
+const PREDICATE_NAME = 'tcpa_dnc_registry_clear';
 
 export const dncRegistryPredicate: CompositePredicate<DncRegistryInput> = {
   name: PREDICATE_NAME,

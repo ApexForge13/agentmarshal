@@ -21,7 +21,7 @@ const INPUT_SCHEMA = {
   additionalProperties: false,
 };
 
-const PREDICATE_NAME = 'tcpa_revocation_check';
+const PREDICATE_NAME = 'tcpa_revocation_honored';
 
 export const revocationPredicate: CompositePredicate<RevocationInput> = {
   name: PREDICATE_NAME,

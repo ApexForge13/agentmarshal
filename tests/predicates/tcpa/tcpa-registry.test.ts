@@ -3,12 +3,12 @@ import { registerAllTcpaComposites } from '../../../lib/compliance/predicates/tc
 import { clearComposites, getComposite } from '../../../lib/authzen/composite-dispatch';
 
 const EXPECTED_NAMES = [
-  'tcpa_quiet_hours_check',
-  'tcpa_dnc_registry_check',
-  'tcpa_consent_check',
-  'tcpa_revocation_check',
-  'tcpa_caller_id_check',
-  'tcpa_robocall_disclosure_check',
+  'tcpa_quiet_hours_respected',
+  'tcpa_dnc_registry_clear',
+  'tcpa_consent_present',
+  'tcpa_revocation_honored',
+  'tcpa_caller_id_disclosed',
+  'tcpa_robocall_disclosure_present',
 ];
 
 describe('TCPA composite registry', () => {

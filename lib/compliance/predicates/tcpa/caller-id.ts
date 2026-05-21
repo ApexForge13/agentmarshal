@@ -24,7 +24,7 @@ const INPUT_SCHEMA = {
   additionalProperties: false,
 };
 
-const PREDICATE_NAME = 'tcpa_caller_id_check';
+const PREDICATE_NAME = 'tcpa_caller_id_disclosed';
 
 export const callerIdPredicate: CompositePredicate<CallerIdInput> = {
   name: PREDICATE_NAME,

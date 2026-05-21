@@ -30,13 +30,13 @@ describe('TCPA revocation predicate (Bubble 1a stub)', () => {
       makeCtx(),
     );
     expect(result.result).toBe('stub');
-    expect(result.predicate).toBe('tcpa_revocation_check');
+    expect(result.predicate).toBe('tcpa_revocation_honored');
     expect(result.reason).toMatch(/not yet implemented/i);
   });
 
   it('isAllowable returns false when the revocation stub is in the trace', () => {
     const evals: CompositePredicateEvaluation[] = [
-      { predicate: 'tcpa_revocation_check', result: 'stub', reason: '', details: {} },
+      { predicate: 'tcpa_revocation_honored', result: 'stub', reason: '', details: {} },
     ];
     expect(isAllowable(evals)).toBe(false);
   });

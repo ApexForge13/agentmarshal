@@ -70,7 +70,7 @@ describe('evaluator + composite dispatch integration', () => {
           match: { action: { name: { equals: 'place_call' } } },
           composite_checks: [
             {
-              predicate: 'tcpa_quiet_hours_check',
+              predicate: 'tcpa_quiet_hours_respected',
               input: { recipient_timezone: 'America/New_York' },
             },
           ],
@@ -87,7 +87,7 @@ describe('evaluator + composite dispatch integration', () => {
     expect(result.effect).toBe('allow');
     expect(result.matched_rule_id).toBe('allow-with-quiet-hours-check');
     expect(result.composite_evaluations?.[0].result).toBe('pass');
-    expect(result.composite_evaluations?.[0].predicate).toBe('tcpa_quiet_hours_check');
+    expect(result.composite_evaluations?.[0].predicate).toBe('tcpa_quiet_hours_respected');
   });
 
   it('stub composite result blocks allow (fail-safe), evaluator falls through to next rule', async () => {
@@ -99,7 +99,7 @@ describe('evaluator + composite dispatch integration', () => {
           rule_id: 'allow-with-dnc-stub',
           match: { action: { name: { equals: 'place_call' } } },
           composite_checks: [
-            { predicate: 'tcpa_dnc_registry_check', input: { recipient_phone: '+14045551234' } },
+            { predicate: 'tcpa_dnc_registry_clear', input: { recipient_phone: '+14045551234' } },
           ],
           decision: { effect: 'allow', reason_code: 'WOULD_ALLOW', reason: '' },
         },
@@ -131,7 +131,7 @@ describe('evaluator + composite dispatch integration', () => {
           match: { subject: { id: { exists: true } } },
           composite_checks: [
             // Missing required recipient_timezone
-            { predicate: 'tcpa_quiet_hours_check', input: { recipient_state: 'GA' } },
+            { predicate: 'tcpa_quiet_hours_respected', input: { recipient_state: 'GA' } },
           ],
           decision: { effect: 'allow', reason_code: 'X', reason: '' },
         },

@@ -27,7 +27,7 @@ const INPUT_SCHEMA = {
   additionalProperties: false,
 };
 
-const PREDICATE_NAME = 'tcpa_robocall_disclosure_check';
+const PREDICATE_NAME = 'tcpa_robocall_disclosure_present';
 
 export const robocallDisclosurePredicate: CompositePredicate<RobocallDisclosureInput> = {
   name: PREDICATE_NAME,

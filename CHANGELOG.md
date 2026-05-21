@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CAN-SPAM composite predicate library under `lib/compliance/predicates/canspam/`: 6 predicates (1 stub `canspam_unsubscribe_mechanism_working` deferred to Day 6, 5 real checks) covering 15 USC §7704(a)(1)–(5)
 - Explicit `registerAllTcpaComposites()` and `registerAllCanspamComposites()` registration functions for tree-shake resistance and grep-ability, with module-load side-effect calls preserving bare-import behavior
 - Symmetric registry smoke tests under `tests/predicates/{tcpa,canspam}/`
+- `docs(spec): agent inventory and layered contract model` (`spec/v0.1/agents.md`)
+- `docs(spec): new predicate inventory (20 predicates queued for implementation)`
+- `docs(spec): buffer-driven pull controller and daily cost report template`
+- `docs(spec): six-loop self-improvement framework`
+- `docs(spec): BD integration model with tiered enrichment depth`
 
 ### Changed
 - TCPA composite predicate names normalized to predicate-attribute convention to match CAN-SPAM and produce naturally-readable receipt entries (`tcpa_quiet_hours_check` → `tcpa_quiet_hours_respected`, etc.; full map in this commit). Behavior unchanged.

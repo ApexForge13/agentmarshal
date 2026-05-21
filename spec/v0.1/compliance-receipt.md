@@ -63,8 +63,17 @@ Top-level fields, grouped by role:
 **Provenance.**
 - `issued_at` — ISO 8601 UTC timestamp of receipt construction.
 - `code_version` — identifier of the AgentMarshal codebase that produced the receipt (typically a git SHA-1).
-- `contract_id`, `contract_version` — Scope Contract identity active at evaluation.
+- `contract_id`, `contract_version` — Scope Contract identity active at evaluation. See the note below.
 - `tenant_id`, `agent_id`, `evaluation_id`, `request_id` — operational identifiers tying the receipt to the broader trace.
+
+> **`contract_version` note.** The receipt's `contract_version` is the
+> human-readable version label of the Scope Contract that governed this
+> evaluation (e.g., `"v2.1"`, `"2026-Q2"`, `"draft-7"`). This is **not**
+> the same field as the audit record's `contract_version` integer (which
+> records a monotonic per-contract revision number used internally for
+> sequencing). A verifier should treat the receipt's `contract_version`
+> as an opaque label and not attempt to round-trip it through the audit
+> record's integer.
 
 **Decision.** A nested object with `effect` (`allow` / `deny` / `escalate`),
 `evaluation_path` (`temporal`, `out_of_scope`, `declared_scope`, `no_match`),

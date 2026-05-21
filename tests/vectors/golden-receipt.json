@@ -1,0 +1,74 @@
+{
+  "receipt_version": "0.1",
+  "schema_version": "0.1",
+  "receipt_id": "11111111-2222-4333-8444-555555555555",
+  "previous_receipt_hash": null,
+  "canonical_form": "rfc8785",
+  "issued_at": "2026-05-21T00:00:00.000Z",
+  "code_version": "golden-fixture",
+  "contract_id": "contract-golden",
+  "contract_version": "0.1",
+  "tenant_id": "tenant-golden",
+  "agent_id": "agent-golden",
+  "evaluation_id": "eval-golden",
+  "request_id": "req-golden",
+  "decision": {
+    "effect": "allow",
+    "evaluation_path": "declared_scope",
+    "matched_rule_id": "voice-sales-business-hours",
+    "reason_code": "TCPA_OK",
+    "reason": "within business hours, consent confirmed"
+  },
+  "predicate_evaluations": [
+    {
+      "rule_id": "voice-sales-business-hours",
+      "predicate_path": "action.name",
+      "constraint": {
+        "equals": "place_call"
+      },
+      "actual_value": "place_call",
+      "result": "pass"
+    }
+  ],
+  "composite_evaluations": [
+    {
+      "predicate": "tcpa_quiet_hours_respected",
+      "result": "pass",
+      "reason": "within allowed window",
+      "details": {
+        "recipient_local_time": "14:30",
+        "effective_window": {
+          "start": "08:00",
+          "end": "21:00"
+        }
+      }
+    },
+    {
+      "predicate": "tcpa_consent_present",
+      "result": "pass",
+      "reason": "written_express consent on file",
+      "details": {
+        "call_type": "sales",
+        "actual_level": "written_express"
+      }
+    }
+  ],
+  "regulatory_state": {
+    "hash": null,
+    "pending": true,
+    "snapshot_source": null,
+    "anchor_timestamp": null,
+    "anchor_method": "pending"
+  },
+  "signatures": [
+    {
+      "algorithm": "ed25519",
+      "key_id": "am-5KHC_34ubkjY4aCvf9WBgwfAfuWCfXKJ08RX1atMO_Y",
+      "public_key_fingerprint": "bd4e02f43853c45ca08a9ca2cbe399445861f4927d10b0861cce33c6f2fd4645",
+      "signature": "98e70569db3082ed73cc14f6141037118a0b68963e2444dccf280b7b9f78238ba31bd21b60b0f3c084b57f7108fb86fdadff63f5575436da17856234d39c2501",
+      "signed_at": "2026-05-21T00:00:00.500Z",
+      "signer_role": "agentmarshal"
+    }
+  ],
+  "receipt_hash": "f7e6d95892ba8645c30762a0dff3bdbdf8fe23c03c165fb8d457774291c3f1f7"
+}

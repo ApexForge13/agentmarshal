@@ -60,7 +60,8 @@ export interface BuildReceiptInput {
   previousReceiptHash?: string | null;
   regulatoryState?: RegulatoryStateAnchor;
   issuedAt?: Date;
-  signers: Array<{ handle: SigningHandle; role: SignerRole }>;
+  receiptId?: string;
+  signers: Array<{ handle: SigningHandle; role: SignerRole; signedAt?: Date }>;
 }
 
 export function computeReceiptHash(
@@ -83,7 +84,7 @@ export async function buildReceipt(input: BuildReceiptInput): Promise<Compliance
   const body = {
     receipt_version: '0.1' as const,
     schema_version: '0.1' as const,
-    receipt_id: randomUUID(),
+    receipt_id: input.receiptId ?? randomUUID(),
     previous_receipt_hash: previousReceiptHash,
     canonical_form: 'rfc8785' as const,
     issued_at: issuedAt,
@@ -109,14 +110,14 @@ export async function buildReceipt(input: BuildReceiptInput): Promise<Compliance
   const canonicalBody = canonicalize(body);
 
   const signatures: ReceiptSignature[] = [];
-  for (const { handle, role } of input.signers) {
+  for (const { handle, role, signedAt } of input.signers) {
     const sigResult = await sign(canonicalBody, handle);
     signatures.push({
       algorithm: sigResult.algorithm,
       key_id: sigResult.key_id,
       public_key_fingerprint: sigResult.public_key_fingerprint,
       signature: sigResult.signature_hex,
-      signed_at: new Date().toISOString(),
+      signed_at: (signedAt ?? new Date()).toISOString(),
       signer_role: role,
     });
   }

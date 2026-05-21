@@ -23,6 +23,10 @@
 # misc
 .DS_Store
 *.pem
+# Exception: golden test fixtures hold a public-key-only PEM derived from a
+# published seed. Production private keys are also *.pem but live under
+# data/keys/ (gitignored above).
+!tests/vectors/keys/*.pem
 
 # debug
 npm-debug.log*

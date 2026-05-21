@@ -1,0 +1,22 @@
+[
+  {
+    "name": "numbers (RFC 8785 §3.2.4)",
+    "input": { "numbers": [333333333.33333329, 1e30, 4.50, 2e-3, 0.000000000000000000000000001] },
+    "expected": "{\"numbers\":[333333333.3333333,1e+30,4.5,0.002,1e-27]}"
+  },
+  {
+    "name": "sorted keys with nested object",
+    "input": { "z": 1, "a": [3, 1, 2], "nested": { "y": null, "x": true } },
+    "expected": "{\"a\":[3,1,2],\"nested\":{\"x\":true,\"y\":null},\"z\":1}"
+  },
+  {
+    "name": "unicode keys sort by UTF-16 code unit",
+    "input": { "é": 1, "e": 2 },
+    "expected": "{\"e\":2,\"é\":1}"
+  },
+  {
+    "name": "empty object and array",
+    "input": { "empty_obj": {}, "empty_arr": [] },
+    "expected": "{\"empty_arr\":[],\"empty_obj\":{}}"
+  }
+]

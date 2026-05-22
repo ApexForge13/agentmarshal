@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentmarshal.dev/schema/v0.1/internal-audit-record.schema.json",
+  "title": "Internal Audit Record",
+  "description": "Signed, content-addressed, RFC 8785-canonicalized record of a non-customer-touching agent action evaluated against a Scope Contract. Issued by agents whose direct actions do not produce Compliance Receipts (LeadScraper, Validator, InboxAllocator, Personalizer, COO, InboxProvisioner, RegulatoryMonitor — see agents.md §1) and by customer-touching agents (CampaignManager, ResponseHandler, Voice) for their non-customer-touching operations (Loop adjustments, daily reports, internal corrections). Shares the signing/chaining crypto substrate with Compliance Receipts; discriminated by record_type. License: MIT (SPDX-License-Identifier: MIT). Part of AgentMarshal — github.com/ApexForge13/agentmarshal.",
+  "type": "object",
+
+  "required": [
+    "internal_audit_version", "schema_version", "record_type",
+    "record_id", "audit_hash", "previous_audit_hash", "canonical_form",
+    "issued_at", "code_version",
+    "tenant_id", "evaluation_id", "request_id",
+    "agent", "action", "contract", "evaluation",
+    "regulatory_state", "signatures"
+  ],
+  "additionalProperties": false,
+
+  "properties": {
+    "internal_audit_version": {
+      "description": "Internal Audit Record artifact version. Independent of schema_version so a v0.1 record format MAY be re-validated against a v0.2 schema if backward-compatible.",
+      "type": "string",
+      "const": "0.1"
+    },
+    "schema_version": {
+      "description": "Version of this JSON Schema document the record conforms to. Verifiers MAY select a schema by this field when running against a multi-version verifier.",
+      "type": "string",
+      "const": "0.1"
+    },
+    "record_type": {
+      "description": "Discriminator that distinguishes this envelope from Compliance Receipts. Verifiers dispatch on this field. Compliance Receipts produced under v0.1 do not carry record_type (implicit 'compliance_receipt'); a verifier seeing no record_type MUST treat the record as a Compliance Receipt and dispatch to the receipt verifier.",
+      "type": "string",
+      "const": "internal_audit"
+    },
+    "record_id": {
+      "description": "Globally unique identifier for this audit record. Format: 'ia-' prefix followed by a UUIDv4. The prefix lets operators visually disambiguate audit record IDs from receipt IDs in logs and traces.",
+      "type": "string",
+      "pattern": "^ia-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "audit_hash": {
+      "description": "SHA-256 hex of the canonicalized audit record MINUS this field itself. Computed AFTER signatures are appended, over the union of the body and the signatures array. Provides content-addressing and an integrity check independent of signatures.",
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "previous_audit_hash": {
+      "description": "audit_hash of the prior audit record in this agent's audit-record hash chain, or null when this is the first audit record for the agent. Per-agent per-record-type chains: receipts and audit records form parallel chains, so an agent emitting both has independent previous_receipt_hash and previous_audit_hash sequences.",
+      "oneOf": [
+        { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "canonical_form": {
+      "description": "Algorithm used to produce the canonical byte sequence that is signed and hashed. Declared in-band so future canonicalization rotations do not invalidate old records.",
+      "type": "string",
+      "const": "rfc8785"
+    },
+
+    "issued_at": {
+      "description": "ISO 8601 UTC timestamp at which the audit record was constructed (after evaluation; before signing).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "code_version": {
+      "description": "Identifier of the AgentMarshal codebase version that produced this record. RECOMMENDED: 40-char git SHA-1. Falls back to AGENTMARSHAL_CODE_VERSION env var or the literal 'unknown' when git is unavailable.",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "tenant_id": {
+      "description": "Operator tenant namespace, echoed from the contract.",
+      "type": "string",
+      "minLength": 1
+    },
+    "evaluation_id": {
+      "description": "Identifier of the underlying evaluation audit row. Joins the audit record to the full AuthZEN-shaped request/response that produced it (when the action was routed through evaluate()).",
+      "type": "string",
+      "minLength": 1
+    },
+    "request_id": {
+      "description": "Correlation identifier from the call that triggered evaluation. For internal actions without a PEP-originated request, producers SHOULD synthesize a stable internal ID (e.g., 'internal-<uuid>') so trace correlation still works.",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "agent": {
+      "description": "Identity of the agent emitting this audit record. The enum on 'type' constrains records to the canonical 10-agent inventory from agents.md §1; any of the 10 may emit internal-audit records for non-customer-touching actions.",
+      "type": "object",
+      "required": ["id", "type", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Per-instance agent identifier. Unique within tenant.",
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "description": "Agent class from the canonical inventory (agents.md §1).",
+          "type": "string",
+          "enum": [
+            "LeadScraper",
+            "Validator",
+            "InboxAllocator",
+            "Personalizer",
+            "CampaignManager",
+            "ResponseHandler",
+            "COO",
+            "InboxProvisioner",
+            "Voice",
+            "RegulatoryMonitor"
+          ]
+        },
+        "version": {
+          "description": "Agent code version. String to allow semver, build tags, or operator-defined labels.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+
+    "action": {
+      "description": "The internal action being recorded. action.type is a free-string identifier in v0.2 (registry comes with a later bubble when agents are wired); inputs and outputs are open objects so each agent can capture action-specific provenance.",
+      "type": "object",
+      "required": ["type", "inputs", "outputs"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Identifier for the kind of action (e.g., 'template_promoted', 'inbox_retired', 'pipeline_buffer_adjusted'). Free-string in v0.2; an enum registry will replace this in a later schema version.",
+          "type": "string",
+          "minLength": 1
+        },
+        "inputs": {
+          "description": "Action inputs that fed the agent's decision. Schema permits arbitrary keys; agents are responsible for not embedding secrets.",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "outputs": {
+          "description": "Action outputs produced by the agent. Schema permits arbitrary keys.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "contract": {
+      "description": "Scope Contract under which the action was evaluated. Echoes the contract's identity at evaluation time.",
+      "type": "object",
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "contract_id of the Scope Contract.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "description": "Version label of the contract that was active at evaluation time. String to allow semver, supersession sequences, or operator-defined version labels.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+
+    "evaluation": {
+      "description": "Evaluation trace for this action. Same composite_evaluations / decision / predicate_evaluations shape as Compliance Receipts, nested under 'evaluation' so the receipt vs. audit-record discriminator stays clean at the top level.",
+      "type": "object",
+      "required": ["predicate_evaluations", "composite_evaluations", "decision"],
+      "additionalProperties": false,
+      "properties": {
+        "predicate_evaluations": {
+          "description": "Ordered trace of per-rule predicate evaluations performed during this evaluation.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/PredicateEvaluation" }
+        },
+        "composite_evaluations": {
+          "description": "Ordered trace of composite predicate evaluations (TCPA, CAN-SPAM, sourcing, operational, voice). Composite results other than 'pass' block 'allow' decisions via the fail-safe policy.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/CompositePredicateEvaluation" }
+        },
+        "decision": {
+          "description": "Scope Contract-level decision summary.",
+          "type": "object",
+          "required": ["effect", "evaluation_path", "matched_rule_id", "reason_code", "reason"],
+          "additionalProperties": false,
+          "properties": {
+            "effect": {
+              "description": "Decision applied to the request. 'allow' permits the action; 'deny' blocks it; 'escalate' defers to a human or higher-authority workflow.",
+              "type": "string",
+              "enum": ["allow", "deny", "escalate"]
+            },
+            "evaluation_path": {
+              "description": "Phase of evaluation that produced the decision.",
+              "type": "string",
+              "enum": ["temporal", "out_of_scope", "declared_scope", "no_match"]
+            },
+            "matched_rule_id": {
+              "description": "rule_id of the declared_scope rule that matched. Non-null only when evaluation_path is 'declared_scope'.",
+              "type": ["string", "null"]
+            },
+            "reason_code": {
+              "description": "Stable machine-readable reason code.",
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "description": "Human-readable reason string.",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+
+    "regulatory_state": {
+      "description": "Anchor that ties this audit record to a point-in-time snapshot of external regulatory data. Same shape as Compliance Receipts.",
+      "type": "object",
+      "required": ["hash", "pending", "snapshot_source", "anchor_timestamp", "anchor_method"],
+      "additionalProperties": false,
+      "properties": {
+        "hash": {
+          "description": "SHA-256 hex of the canonicalized regulatory snapshot. Null when pending.",
+          "type": ["string", "null"]
+        },
+        "pending": {
+          "description": "True when no regulatory snapshot was available at evaluation time. Verifiers MAY downgrade trust accordingly.",
+          "type": "boolean"
+        },
+        "snapshot_source": {
+          "description": "Identifier of the data source the snapshot was derived from. Null when pending.",
+          "type": ["string", "null"]
+        },
+        "anchor_timestamp": {
+          "description": "ISO 8601 UTC timestamp at which the snapshot was anchored to an external timestamping service. Null when pending or when no external anchor was used.",
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "anchor_method": {
+          "description": "External anchoring method used. 'pending' is the v0.1 default until Bright Data integration wires real anchors.",
+          "type": ["string", "null"],
+          "enum": ["pending", "rfc3161", "opentimestamps", null]
+        }
+      }
+    },
+
+    "signatures": {
+      "description": "One or more signatures over the canonicalized body (the record MINUS audit_hash and signatures). Same shape as Compliance Receipts; v0.1 uses Ed25519 with the same KeyRegistry as receipts.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/AuditRecordSignature" }
+    }
+  },
+
+  "$defs": {
+    "PredicateEvaluation": {
+      "description": "Per-predicate evaluation record echoed from the AuthZEN evaluator. Identical shape to Compliance Receipt PredicateEvaluation $def.",
+      "type": "object",
+      "required": ["rule_id", "predicate_path", "constraint", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "description": "rule_id within which this predicate was evaluated. Null when evaluation_path is 'out_of_scope' or 'temporal'.",
+          "type": ["string", "null"]
+        },
+        "predicate_path": {
+          "description": "Dot-path to the predicate within the match block.",
+          "type": "string"
+        },
+        "constraint": {
+          "description": "Verbatim copy of the predicate value from the contract."
+        },
+        "actual_value": {
+          "description": "The value from the request at predicate_path. May be null when the property is absent."
+        },
+        "result": {
+          "description": "Whether this predicate passed, failed, or was skipped.",
+          "type": "string",
+          "enum": ["pass", "fail", "skipped"]
+        },
+        "reason": {
+          "description": "Optional human-readable reason for fail/skipped results.",
+          "type": "string"
+        }
+      }
+    },
+
+    "CompositePredicateEvaluation": {
+      "description": "Per-composite predicate evaluation entry (TCPA, CAN-SPAM, sourcing, operational, voice). Identical shape to Compliance Receipt CompositePredicateEvaluation $def.",
+      "type": "object",
+      "required": ["predicate", "result", "reason", "details"],
+      "additionalProperties": false,
+      "properties": {
+        "predicate": {
+          "description": "Registered composite predicate name.",
+          "type": "string",
+          "minLength": 1
+        },
+        "result": {
+          "description": "Composite result. 'pass' is allowable; 'fail' and 'stub' block allow under the fail-safe policy.",
+          "type": "string",
+          "enum": ["pass", "fail", "stub"]
+        },
+        "reason": {
+          "description": "Human-readable reason produced by the composite predicate.",
+          "type": "string"
+        },
+        "details": {
+          "description": "Open trace bag from the composite predicate.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "AuditRecordSignature": {
+      "description": "One signature over the canonical body. Same shape as Compliance Receipt's ReceiptSignature; same KeyRegistry, same algorithm set.",
+      "type": "object",
+      "required": ["algorithm", "key_id", "public_key_fingerprint", "signature", "signed_at", "signer_role"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "description": "Signature algorithm. v0.1 supports Ed25519 only.",
+          "type": "string",
+          "enum": ["ed25519"]
+        },
+        "key_id": {
+          "description": "RFC 7638 JWK thumbprint of the public key used, prefixed with 'am-'.",
+          "type": "string",
+          "minLength": 1
+        },
+        "public_key_fingerprint": {
+          "description": "SHA-256 hex of the raw 32-byte Ed25519 public key.",
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "signature": {
+          "description": "Hex-encoded signature bytes. Ed25519 = 128 hex chars.",
+          "type": "string",
+          "pattern": "^[a-f0-9]+$"
+        },
+        "signed_at": {
+          "description": "ISO 8601 UTC timestamp at which this signature was produced.",
+          "type": "string",
+          "format": "date-time"
+        },
+        "signer_role": {
+          "description": "Role of the signing party. 'agentmarshal' is the substrate; 'operator' is the agent's principal; 'vendor' is a downstream system.",
+          "type": "string",
+          "enum": ["agentmarshal", "operator", "vendor"]
+        }
+      }
+    }
+  }
+}

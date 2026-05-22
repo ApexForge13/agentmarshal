@@ -449,10 +449,17 @@ instead. The envelope reuses the receipt signing/chaining substrate but
 carries `record_type: 'internal_audit'` rather than the implicit
 `compliance_receipt` type.
 
-The internal-audit envelope spec — schema additions, signing path,
-chaining semantics — lands in a subsequent bubble. Until then, agents
-that would emit internal-audit records emit nothing for those actions
-(no silent fallback to Compliance Receipts); the audit gap is tracked.
+The envelope is now defined: see
+[`spec/v0.1/internal-audit-record.md`](internal-audit-record.md) for the
+human-readable spec and `spec/v0.1/internal-audit-record.schema.json`
+for the normative JSON Schema. The builder lives at
+`lib/compliance/internal-audit/builder.ts` and reuses the receipt's
+canonicalize / sha256Hex / sign / verify primitives unchanged (no
+duplicate crypto). Receipts and audit records form parallel
+`previous_*_hash` chains per agent. Customer-touching agents
+(CampaignManager, ResponseHandler, Voice) MAY also emit internal-audit
+records for their non-customer-touching operations (Loop adjustments,
+daily reports); the discriminator is action type, not agent type.
 
 ### 7.6 Authoritative-spec rule
 

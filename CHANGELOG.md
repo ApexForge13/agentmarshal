@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs(spec): BD integration model with tiered enrichment depth`
 - `feat(compliance): sourcing predicate stubs (8 predicates - 5 BD provenance, 3 sourcing) under lib/compliance/predicates/sourcing/`
 - `feat(compliance): operational predicate stubs (7 predicates - 3 operational, 4 pipeline control) under lib/compliance/predicates/operational/`
+- `feat(compliance): voice predicate stubs (4 predicates - runtime checks complementary to TCPA declarative checks) under lib/compliance/predicates/voice/`
 
 ### Changed
 - TCPA composite predicate names normalized to predicate-attribute convention to match CAN-SPAM and produce naturally-readable receipt entries (`tcpa_quiet_hours_check` → `tcpa_quiet_hours_respected`, etc.; full map in this commit). Behavior unchanged.

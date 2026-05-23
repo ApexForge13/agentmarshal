@@ -4,6 +4,8 @@ import {
   registerComposite,
   clearComposites,
   getComposite,
+  isAllowable,
+  type CompositePredicateEvaluation,
 } from '../../../lib/authzen/composite-dispatch';
 import { NULL_EMITTER, type EvalContext } from '../../../lib/authzen/eval-context';
 
@@ -23,8 +25,13 @@ describe('sourcing data_acquisition_tos_compliant predicate (Bubble 1 stub)', ()
     registerComposite(dataAcquisitionTosCompliantPredicate);
   });
 
-  it('registers and returns stub shape with deferred reason', async () => {
-    expect(getComposite('data_acquisition_tos_compliant')).toBeDefined();
+  it('registers the composite predicate by name', () => {
+    const predicate = getComposite('data_acquisition_tos_compliant');
+    expect(predicate).toBeDefined();
+    expect(predicate?.name).toBe('data_acquisition_tos_compliant');
+  });
+
+  it('returns stub-shape result on evaluation', async () => {
     const result = await dataAcquisitionTosCompliantPredicate.evaluate(
       {
         source_url: 'https://example.com/contractor-directory',
@@ -37,5 +44,12 @@ describe('sourcing data_acquisition_tos_compliant predicate (Bubble 1 stub)', ()
     expect(result.reason).toMatch(/not yet implemented/i);
     expect(result.details.acquisition_method).toBe('direct_scrape');
     expect(result.details.deferred_to).toMatch(/Bright Data integration day/);
+  });
+
+  it('blocks isAllowable when the stub appears in an evaluation', () => {
+    const evals: CompositePredicateEvaluation[] = [
+      { predicate: 'data_acquisition_tos_compliant', result: 'stub', reason: '', details: {} },
+    ];
+    expect(isAllowable(evals)).toBe(false);
   });
 });

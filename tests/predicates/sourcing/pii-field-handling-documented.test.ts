@@ -4,6 +4,8 @@ import {
   registerComposite,
   clearComposites,
   getComposite,
+  isAllowable,
+  type CompositePredicateEvaluation,
 } from '../../../lib/authzen/composite-dispatch';
 import { NULL_EMITTER, type EvalContext } from '../../../lib/authzen/eval-context';
 
@@ -23,8 +25,13 @@ describe('sourcing pii_field_handling_documented predicate (Bubble 1 stub)', () 
     registerComposite(piiFieldHandlingDocumentedPredicate);
   });
 
-  it('registers and returns stub shape with deferred reason', async () => {
-    expect(getComposite('pii_field_handling_documented')).toBeDefined();
+  it('registers the composite predicate by name', () => {
+    const predicate = getComposite('pii_field_handling_documented');
+    expect(predicate).toBeDefined();
+    expect(predicate?.name).toBe('pii_field_handling_documented');
+  });
+
+  it('returns stub-shape result on evaluation', async () => {
     const result = await piiFieldHandlingDocumentedPredicate.evaluate(
       { field_name: 'email' },
       makeCtx(),
@@ -34,5 +41,12 @@ describe('sourcing pii_field_handling_documented predicate (Bubble 1 stub)', () 
     expect(result.reason).toMatch(/not yet implemented/i);
     expect(result.details.field_name).toBe('email');
     expect(result.details.deferred_to).toMatch(/Bright Data integration day/);
+  });
+
+  it('blocks isAllowable when the stub appears in an evaluation', () => {
+    const evals: CompositePredicateEvaluation[] = [
+      { predicate: 'pii_field_handling_documented', result: 'stub', reason: '', details: {} },
+    ];
+    expect(isAllowable(evals)).toBe(false);
   });
 });

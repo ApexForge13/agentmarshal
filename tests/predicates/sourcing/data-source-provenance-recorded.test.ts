@@ -4,6 +4,8 @@ import {
   registerComposite,
   clearComposites,
   getComposite,
+  isAllowable,
+  type CompositePredicateEvaluation,
 } from '../../../lib/authzen/composite-dispatch';
 import { NULL_EMITTER, type EvalContext } from '../../../lib/authzen/eval-context';
 
@@ -23,8 +25,13 @@ describe('sourcing data_source_provenance_recorded predicate (Bubble 1 stub)', (
     registerComposite(dataSourceProvenanceRecordedPredicate);
   });
 
-  it('registers and returns stub shape with deferred reason', async () => {
-    expect(getComposite('data_source_provenance_recorded')).toBeDefined();
+  it('registers the composite predicate by name', () => {
+    const predicate = getComposite('data_source_provenance_recorded');
+    expect(predicate).toBeDefined();
+    expect(predicate?.name).toBe('data_source_provenance_recorded');
+  });
+
+  it('returns stub-shape result on evaluation', async () => {
     const result = await dataSourceProvenanceRecordedPredicate.evaluate(
       { lead_id: 'lead-abc-123' },
       makeCtx(),
@@ -34,5 +41,12 @@ describe('sourcing data_source_provenance_recorded predicate (Bubble 1 stub)', (
     expect(result.reason).toMatch(/not yet implemented/i);
     expect(result.details.lead_id).toBe('lead-abc-123');
     expect(result.details.deferred_to).toMatch(/Bright Data integration day/);
+  });
+
+  it('blocks isAllowable when the stub appears in an evaluation', () => {
+    const evals: CompositePredicateEvaluation[] = [
+      { predicate: 'data_source_provenance_recorded', result: 'stub', reason: '', details: {} },
+    ];
+    expect(isAllowable(evals)).toBe(false);
   });
 });

@@ -4,6 +4,8 @@ import {
   registerComposite,
   clearComposites,
   getComposite,
+  isAllowable,
+  type CompositePredicateEvaluation,
 } from '../../../lib/authzen/composite-dispatch';
 import { NULL_EMITTER, type EvalContext } from '../../../lib/authzen/eval-context';
 
@@ -23,8 +25,13 @@ describe('sourcing bd_proxy_session_logged predicate (Bubble 1 stub)', () => {
     registerComposite(bdProxySessionLoggedPredicate);
   });
 
-  it('registers and returns stub shape with deferred reason', async () => {
-    expect(getComposite('bd_proxy_session_logged')).toBeDefined();
+  it('registers the composite predicate by name', () => {
+    const predicate = getComposite('bd_proxy_session_logged');
+    expect(predicate).toBeDefined();
+    expect(predicate?.name).toBe('bd_proxy_session_logged');
+  });
+
+  it('returns stub-shape result on evaluation', async () => {
     const result = await bdProxySessionLoggedPredicate.evaluate(
       { session_id: 'bd-session-9f3c' },
       makeCtx(),
@@ -34,5 +41,12 @@ describe('sourcing bd_proxy_session_logged predicate (Bubble 1 stub)', () => {
     expect(result.reason).toMatch(/not yet implemented/i);
     expect(result.details.session_id).toBe('bd-session-9f3c');
     expect(result.details.deferred_to).toMatch(/Bright Data integration day/);
+  });
+
+  it('blocks isAllowable when the stub appears in an evaluation', () => {
+    const evals: CompositePredicateEvaluation[] = [
+      { predicate: 'bd_proxy_session_logged', result: 'stub', reason: '', details: {} },
+    ];
+    expect(isAllowable(evals)).toBe(false);
   });
 });

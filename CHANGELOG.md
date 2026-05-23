@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TCPA composite predicate names normalized to predicate-attribute convention to match CAN-SPAM and produce naturally-readable receipt entries (`tcpa_quiet_hours_check` → `tcpa_quiet_hours_respected`, etc.; full map in this commit). Behavior unchanged.
 - `lib/compliance/predicates/tcpa/index.ts` refactored to export `registerAllTcpaComposites()` alongside the existing side-effect import. Bare-import behavior unchanged.
 - `chore(spec): replace "Day 6" relative references with "Bright Data integration day" semantic anchor across predicate stub comments (tcpa, canspam), agents.md (§2.1, §2.2, §7.2), and compliance-receipt schema + spec doc`
+- `refactor(tests): sourcing predicate tests refactored from 1-block to 3-block pattern for parity with operational/voice/sms convention - codebase test-shape consistency, no behavior change`
 
 ### Deprecated
 - v0.1 manifest format — will be superseded once Scope Contracts replace it end-to-end.

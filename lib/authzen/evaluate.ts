@@ -51,6 +51,7 @@ export async function evaluateRequest(
     agent_id: contract.agent_id,
     request_id: options.request_id ?? randomUUID(),
     audit: options.audit ?? NULL_EMITTER,
+    action_properties: request.action.properties,
   };
 
   // Phase 1: Temporal

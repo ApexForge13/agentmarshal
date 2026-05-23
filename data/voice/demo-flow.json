@@ -1,0 +1,27 @@
+{
+  "_note": "SAMPLE AGENT demo-grade utterance bank (Bubble 9). Scope is intentionally narrow: triage + escalation only — greet, capture basic info (name, callback, address, intent), recover after a consent denial, confirm a callback, escalate to a human. NO qualification logic, NO appointment booking, NO calendar integration. Anything complex routes to 'let me have someone call you back.' Production NLU/dialogue lives in echo-os.",
+  "contractor_name": "Apex Roofing",
+  "phases": {
+    "greeting": [
+      "Hi, thanks for calling Apex Roofing — this call may be recorded for quality. I see you got our note about possible storm damage on your roof. What's going on?",
+      "Thanks for calling Apex Roofing about your roof — this call may be recorded for quality. How can I help?"
+    ],
+    "capturing": [
+      "Got it. Can I start with your name and the best callback number?",
+      "Thanks. And what's the property address with the damage?",
+      "Perfect. Is this storm or wind damage, a leak, or something else?"
+    ],
+    "recovery_after_deny": [
+      "Absolutely — I've stopped the recording. We don't need it. Let's keep going.",
+      "Of course, recording is off now. No problem at all — where were we?"
+    ],
+    "callback_confirmation": [
+      "No problem. What's the best time for a specialist to call you back?",
+      "Got it. When's a good window for our team to reach you?"
+    ],
+    "close": [
+      "Great — I'll have someone from Apex Roofing call you back at the time you gave. Anything else I should let them know?",
+      "Perfect. A specialist from Apex Roofing will follow up at that time. Anything else for them before I let you go?"
+    ]
+  }
+}

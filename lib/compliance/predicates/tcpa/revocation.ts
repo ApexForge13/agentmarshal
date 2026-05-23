@@ -1,5 +1,5 @@
 // TCPA consent revocation composite predicate.
-// Day 6 wires real revocation registry lookup (echo-os integration).
+// Bright Data integration day wires real revocation registry lookup (echo-os integration).
 // Bubble 1a: returns `result: 'stub'`. Fail-safe policy blocks `allow`.
 
 import type {
@@ -33,7 +33,7 @@ export const revocationPredicate: CompositePredicate<RevocationInput> = {
       reason: 'consent revocation lookup not yet implemented',
       details: {
         recipient_phone: input.recipient_phone,
-        deferred_to: 'Day 6 (revocation registry integration)',
+        deferred_to: 'Bright Data integration day (revocation registry integration)',
       },
     };
   },

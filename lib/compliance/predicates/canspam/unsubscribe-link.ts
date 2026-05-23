@@ -1,7 +1,7 @@
 // CAN-SPAM unsubscribe link composite predicate.
 // 15 USC §7704(a)(3): commercial messages must include a working unsubscribe mechanism.
 // This predicate checks PRESENCE of the link/header; mechanism liveness is a separate
-// predicate (canspam_unsubscribe_mechanism_working) deferred to Day 6.
+// predicate (canspam_unsubscribe_mechanism_working) deferred to Bright Data integration day.
 //
 // Pass if any of:
 //   - List-Unsubscribe header present (RFC 2369 / RFC 8058)

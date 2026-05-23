@@ -1,5 +1,5 @@
 // TCPA DNC (Do-Not-Call) registry composite predicate.
-// Day 6 wires real Bright Data Web Unlocker lookup against donotcall.gov.
+// Bright Data integration day wires real Web Unlocker lookup against donotcall.gov.
 // Bubble 1a: returns `result: 'stub'`. Fail-safe policy blocks `allow`.
 
 import type {
@@ -32,11 +32,11 @@ export const dncRegistryPredicate: CompositePredicate<DncRegistryInput> = {
       predicate: PREDICATE_NAME,
       result: 'stub',
       reason:
-        'DNC registry lookup not yet implemented; real Bright Data Web Unlocker lookup lands Day 6',
+        'DNC registry lookup not yet implemented; real Web Unlocker lookup lands on Bright Data integration day',
       details: {
         recipient_phone: input.recipient_phone,
         would_check: `https://www.donotcall.gov registry for ${input.recipient_phone}`,
-        deferred_to: 'Day 6 (Bright Data Web Unlocker)',
+        deferred_to: 'Bright Data integration day (Web Unlocker)',
       },
     };
   },

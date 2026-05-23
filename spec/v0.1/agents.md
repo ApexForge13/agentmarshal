@@ -71,7 +71,7 @@ The TCPA predicates registered today (`tcpa_quiet_hours_respected`,
 `tcpa_dnc_registry_clear`) satisfy `outreach_v1` for any channel that
 adopts them. Two of those six are stubs today
 (`tcpa_dnc_registry_clear`, `tcpa_revocation_honored`) and are tracked
-against Day 6 implementation work.
+against Bright Data integration day implementation work.
 
 ### 2.2 Channel contracts (layer on `outreach_v1`)
 
@@ -83,7 +83,7 @@ predicates registered today (`canspam_unsubscribe_link_present`,
 `canspam_unsubscribe_mechanism_working`, `canspam_postal_address_present`,
 `canspam_sender_id_truthful`, `canspam_subject_line_not_deceptive`,
 `canspam_advertisement_disclosure_present`). One stub
-(`canspam_unsubscribe_mechanism_working`) is tracked against Day 6.
+(`canspam_unsubscribe_mechanism_working`) is tracked against Bright Data integration day.
 
 **`voice_v1`** — voice-channel obligations, layered on `outreach_v1`.
 Required obligations: recording consent state resolved for the caller's
@@ -372,6 +372,19 @@ at emit time.
 - regulatory_state anchor coverage: {pct}% (pending {n})
 ```
 
+**Tier metadata is a call-site contract, not a predicate field.** The
+"Spend by tier" line above (T1 / T2 / T3, per the Bright Data enrichment
+depth model) reflects metadata surfaced by the callers of composite
+predicates — primarily LeadScraper and Personalizer — not a field
+carried inside the predicates themselves. Individual composite predicates
+(e.g., `bd_dataset_subscription_active`) take `dataset_id` and adjacent
+context but do not own tier classification. Calling code MUST surface
+tier alongside `dataset_id` when invoking dataset/enrichment predicates
+if the COO daily report is to attribute per-predicate spend to a tier.
+This keeps tier a deployment/contracting concern rather than a contract
+schema concern, and avoids leaking BD product packaging into the
+predicate registry.
+
 ## 6. Six self-improvement loops
 
 Each loop closes a feedback path between an observed outcome and the
@@ -416,9 +429,9 @@ The following stubs in this document and in the existing registry require
 upstream data sources before they can be promoted from `stub` to a real
 implementation:
 
-- `tcpa_dnc_registry_clear` — needs DNC registry lookup (Day 6)
+- `tcpa_dnc_registry_clear` — needs DNC registry lookup (Bright Data integration day)
 - `tcpa_revocation_honored` — needs revocation registry / propagation
-  store (Day 6, ties to `response_v1` propagation)
+  store (Bright Data integration day, ties to `response_v1` propagation)
 - `voice_recording_consent_state_resolved` — needs per-state
   consent-regime table (one-party / two-party / federal default)
 - `source_public_record_status_verified` — needs non-self-reported

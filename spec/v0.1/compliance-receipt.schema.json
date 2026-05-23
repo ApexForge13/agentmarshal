@@ -136,7 +136,7 @@
     },
 
     "regulatory_state": {
-      "description": "Anchor that ties this receipt to a point-in-time snapshot of external regulatory data (e.g., DNC registry, state quiet-hours tables). When 'pending' is true, no anchor was available; Day 6 Bright Data integration populates real anchors.",
+      "description": "Anchor that ties this receipt to a point-in-time snapshot of external regulatory data (e.g., DNC registry, state quiet-hours tables). When 'pending' is true, no anchor was available; Bright Data integration day populates real anchors.",
       "type": "object",
       "required": ["hash", "pending", "snapshot_source", "anchor_timestamp", "anchor_method"],
       "additionalProperties": false,
@@ -159,7 +159,7 @@
           "format": "date-time"
         },
         "anchor_method": {
-          "description": "External anchoring method used. 'pending' is the v0.1 default until Day 6 wires real anchors.",
+          "description": "External anchoring method used. 'pending' is the v0.1 default until Bright Data integration day wires real anchors.",
           "type": ["string", "null"],
           "enum": ["pending", "rfc3161", "opentimestamps", null]
         }

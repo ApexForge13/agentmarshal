@@ -1,6 +1,6 @@
 // CAN-SPAM unsubscribe mechanism (liveness) composite predicate.
 // 15 USC §7704(a)(4): the unsubscribe mechanism must remain operational for at least
-// 30 days after sending. Real liveness probing lands Day 6 (echo-os integration).
+// 30 days after sending. Real liveness probing lands on Bright Data integration day (echo-os integration).
 
 import type {
   CompositePredicate,
@@ -34,7 +34,7 @@ export const unsubscribeMechanismPredicate: CompositePredicate<UnsubscribeMechan
       details: {
         unsubscribe_url: input.unsubscribe_url,
         would_check: 'endpoint_responds_200_for_30_days',
-        deferred_to: 'Day 6 (echo-os integration)',
+        deferred_to: 'Bright Data integration day (echo-os integration)',
       },
     };
   },

@@ -89,8 +89,8 @@ context.
 
 **External anchors.** `regulatory_state` carries an anchor binding the
 receipt to a point-in-time snapshot of external regulatory data. In v0.1
-this is `{ pending: true, anchor_method: 'pending' }` by default; Day 6
-Bright Data integration populates real anchors with `rfc3161` or
+this is `{ pending: true, anchor_method: 'pending' }` by default; Bright
+Data integration day populates real anchors with `rfc3161` or
 `opentimestamps` methods.
 
 **Signatures.** An array of one or more signature entries, each containing

@@ -2,7 +2,7 @@
 // 47 CFR 64.1200(c)(1): calls allowed 8 AM through 9 PM recipient local time.
 // State regimes (Bubble 1b) intersect with federal — never preempt.
 //
-// Day 6 will derive recipient_timezone from phone number via Bright Data SERP.
+// Bright Data integration day will derive recipient_timezone from phone number via SERP.
 // For Bubble 1a, recipient_timezone is required input.
 
 import type {

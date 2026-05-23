@@ -43,11 +43,27 @@ const STUB_PERMISSIVE_ALLOW: ScopeContract = {
 };
 
 const contractCache = new Map<string, ScopeContract>();
+const contractOverrides = new Map<string, ScopeContract>();
 let agentMapCache: Record<string, string> | null = null;
 
 export function clearContractCache(): void {
   contractCache.clear();
   agentMapCache = null;
+}
+
+/**
+ * Register a contract override keyed by agent_id. When loadContractForAgent is
+ * called with a matching agent_id, the override is returned instead of the
+ * file-backed contract. Intended for benchmark / test scenarios that need
+ * per-scenario contract injection without modifying data/agent-contract-map.json
+ * or data/contracts/. Production code MUST NOT depend on this.
+ */
+export function setContractOverride(agentId: string, contract: ScopeContract): void {
+  contractOverrides.set(agentId, contract);
+}
+
+export function clearContractOverrides(): void {
+  contractOverrides.clear();
 }
 
 export async function resolveContractIdForAgent(agentId: string): Promise<string | null> {
@@ -85,6 +101,9 @@ export async function loadContractFromDisk(contractId: string): Promise<ScopeCon
 }
 
 export async function loadContractForAgent(agentId: string): Promise<ScopeContract> {
+  const override = contractOverrides.get(agentId);
+  if (override) return override;
+
   const contractId = await resolveContractIdForAgent(agentId);
   if (contractId === null) {
     return STUB_PERMISSIVE_ALLOW;

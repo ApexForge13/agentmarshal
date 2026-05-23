@@ -1,0 +1,32 @@
+{
+  "id": "spend_cap-03-adv-at-cap",
+  "category": "spend_cap",
+  "adversarial": true,
+  "description": "Projected equals raw cap ($1000 vs $1000); default 10% margin makes effective ceiling $900, so this exceeds it.",
+  "request": {
+    "subject": { "type": "COO", "id": "coo-001" },
+    "action": { "name": "throttle_send_rate" },
+    "resource": { "type": "campaign", "id": "camp-5003" }
+  },
+  "contract": {
+    "scope_contract_version": "0.1",
+    "contract_id": "bench-spend-cap-03-adv",
+    "agent_id": "coo-001",
+    "issuer": { "type": "system", "id": "agentmarshal:benchmark" },
+    "issued_at": "2026-05-23T00:00:00Z",
+    "declared_scope": [
+      {
+        "rule_id": "spend-cap-rule",
+        "match": { "subject": { "id": { "exists": true } } },
+        "composite_checks": [
+          {
+            "predicate": "spend_within_cap",
+            "input": { "projected_spend_usd": 1000, "monthly_cap_usd": 1000 }
+          }
+        ],
+        "decision": { "effect": "allow", "reason_code": "BENCH_SPEND_CAP_ALLOW" }
+      }
+    ]
+  },
+  "expected": "deny"
+}

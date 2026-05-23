@@ -1,0 +1,32 @@
+{
+  "id": "action_scope-03-adv-empty-declared-scope",
+  "category": "action_scope",
+  "adversarial": true,
+  "description": "Contract declares no actions; any incoming action_name should be rejected.",
+  "request": {
+    "subject": { "type": "COO", "id": "coo-001" },
+    "action": { "name": "emit_daily_report" },
+    "resource": { "type": "report", "id": "rpt-3001" }
+  },
+  "contract": {
+    "scope_contract_version": "0.1",
+    "contract_id": "bench-action-scope-03-adv",
+    "agent_id": "coo-001",
+    "issuer": { "type": "system", "id": "agentmarshal:benchmark" },
+    "issued_at": "2026-05-23T00:00:00Z",
+    "declared_scope": [
+      {
+        "rule_id": "action-scope-rule",
+        "match": { "subject": { "id": { "exists": true } } },
+        "composite_checks": [
+          {
+            "predicate": "action_scope_within_contract",
+            "input": { "action_name": "emit_daily_report", "declared_scope": [] }
+          }
+        ],
+        "decision": { "effect": "allow", "reason_code": "BENCH_ACTION_SCOPE_ALLOW" }
+      }
+    ]
+  },
+  "expected": "deny"
+}

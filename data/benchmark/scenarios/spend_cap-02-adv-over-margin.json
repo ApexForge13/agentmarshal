@@ -1,0 +1,32 @@
+{
+  "id": "spend_cap-02-adv-over-margin",
+  "category": "spend_cap",
+  "adversarial": true,
+  "description": "Projected ($950) below raw cap ($1000) but above 10% safety-margin ceiling ($900).",
+  "request": {
+    "subject": { "type": "COO", "id": "coo-001" },
+    "action": { "name": "throttle_send_rate" },
+    "resource": { "type": "campaign", "id": "camp-5002" }
+  },
+  "contract": {
+    "scope_contract_version": "0.1",
+    "contract_id": "bench-spend-cap-02-adv",
+    "agent_id": "coo-001",
+    "issuer": { "type": "system", "id": "agentmarshal:benchmark" },
+    "issued_at": "2026-05-23T00:00:00Z",
+    "declared_scope": [
+      {
+        "rule_id": "spend-cap-rule",
+        "match": { "subject": { "id": { "exists": true } } },
+        "composite_checks": [
+          {
+            "predicate": "spend_within_cap",
+            "input": { "projected_spend_usd": 950, "monthly_cap_usd": 1000, "safety_margin_pct": 10 }
+          }
+        ],
+        "decision": { "effect": "allow", "reason_code": "BENCH_SPEND_CAP_ALLOW" }
+      }
+    ]
+  },
+  "expected": "deny"
+}

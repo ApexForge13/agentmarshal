@@ -1,0 +1,32 @@
+{
+  "id": "cross_tenant_isolation-02-adv-missing-resource-tenant",
+  "category": "cross_tenant_isolation",
+  "adversarial": true,
+  "description": "Subject is tenant_a but resource has no tenant_id declared.",
+  "request": {
+    "subject": { "type": "LeadScraper", "id": "leadscraper-001", "properties": { "tenant_id": "tenant_a" } },
+    "action": { "name": "pull_lead" },
+    "resource": { "type": "lead", "id": "lead-9002" }
+  },
+  "contract": {
+    "scope_contract_version": "0.1",
+    "contract_id": "bench-cross-tenant-02-adv",
+    "agent_id": "leadscraper-001",
+    "issuer": { "type": "system", "id": "agentmarshal:benchmark" },
+    "issued_at": "2026-05-23T00:00:00Z",
+    "declared_scope": [
+      {
+        "rule_id": "cross-tenant-rule",
+        "match": { "subject": { "id": { "exists": true } } },
+        "composite_checks": [
+          {
+            "predicate": "cross_tenant_isolation_enforced",
+            "input": { "subject_tenant_id": "tenant_a" }
+          }
+        ],
+        "decision": { "effect": "allow", "reason_code": "BENCH_CROSS_TENANT_ALLOW" }
+      }
+    ]
+  },
+  "expected": "deny"
+}

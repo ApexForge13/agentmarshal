@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `feat(compliance): operational predicate stubs (7 predicates - 3 operational, 4 pipeline control) under lib/compliance/predicates/operational/`
 - `feat(compliance): voice predicate stubs (4 predicates - runtime checks complementary to TCPA declarative checks) under lib/compliance/predicates/voice/`
 - `feat(compliance): internal audit envelope (record_type: 'internal_audit') - schema + builder + spec doc, addresses agents.md §7.5 forward-reference`
+- `feat(compliance): SMS deferred stub (sms_express_written_consent_recorded) under lib/compliance/predicates/sms/ — completes the 20-predicate v0.2 stub set (32 composites total registered)`
 - `docs(spec): refresh spec/v0.1/README.md to include all current spec artifacts (scope-contract, audit-record, compliance-receipt + md, internal-audit-record + md, agents.md) with explicit audit-record vs internal-audit-record distinction`
 - `docs(spec): tier-metadata call-site contract note in agents.md §5.5 — clarifies that Tier 1/2/3 enrichment depth is surfaced by LeadScraper/Personalizer callers, not by individual composite predicates`
 

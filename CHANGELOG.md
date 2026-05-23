@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `feat(compliance): SMS deferred stub (sms_express_written_consent_recorded) under lib/compliance/predicates/sms/ — completes the 20-predicate v0.2 stub set (32 composites total registered)`
 - `feat(access): evaluation endpoint emits a signed Compliance Receipt or Internal Audit envelope on every evaluation, attached under response.record with a record_type discriminator. Emission kind is selected by subject.type via lib/access/emission-policy.ts per agents.md §1 (CampaignManager/ResponseHandler/Voice → compliance_receipt; LeadScraper/Validator/InboxAllocator/Personalizer/COO/InboxProvisioner/RegulatoryMonitor → internal_audit; unknown → internal_audit with COO envelope fallback). Chain tracking deferred — previous_*_hash always null in v0.2.`
 - `chore(routing): canonical AuthZEN 1.0 path /access/v1/evaluation rewrites to /api/access/v1/evaluation in next.config.ts (Day 5 deferred item closed)`
+- `feat(authzen): file-backed Scope Contract loader with schema validation + in-memory caching. Loads from data/contracts/<id>.json, resolves agent→contract via data/agent-contract-map.json, falls back to STUB_PERMISSIVE_ALLOW on miss/error. New helpers: loadContractFromDisk, resolveContractIdForAgent, clearContractCache, loadAllContractsForStartup. Compiled Ajv validator at lib/authzen/contract-schema.ts.`
+- `feat(data): seed Scope Contracts (outreach_v1, voice_v1, sourcing_v1, operational_v1) under data/contracts/ + data/agent-contract-map.json with 10 representative agent mappings (voice-001, leadscraper-001, validator-001, coo-001, inbox-allocator-001, campaign-manager-001, response-handler-001, personalizer-001, inbox-provisioner-001, regulatory-monitor-001).`
 - `docs(spec): refresh spec/v0.1/README.md to include all current spec artifacts (scope-contract, audit-record, compliance-receipt + md, internal-audit-record + md, agents.md) with explicit audit-record vs internal-audit-record distinction`
 - `docs(spec): tier-metadata call-site contract note in agents.md §5.5 — clarifies that Tier 1/2/3 enrichment depth is surfaced by LeadScraper/Personalizer callers, not by individual composite predicates`
 
@@ -37,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `lib/compliance/predicates/tcpa/index.ts` refactored to export `registerAllTcpaComposites()` alongside the existing side-effect import. Bare-import behavior unchanged.
 - `chore(spec): replace "Day 6" relative references with "Bright Data integration day" semantic anchor across predicate stub comments (tcpa, canspam), agents.md (§2.1, §2.2, §7.2), and compliance-receipt schema + spec doc`
 - `refactor(tests): sourcing predicate tests refactored from 1-block to 3-block pattern for parity with operational/voice/sms convention - codebase test-shape consistency, no behavior change`
+- `fix(spec): extend scope-contract.schema.json ScopeRule definition to include composite_checks (was implemented in lib/authzen/evaluate.ts + types/authzen.ts since Day 3 Bubble 2 but missing from the normative schema; partial closure of schema-verification Issue queue). New CompositeCheck $def with { predicate: string, input: unknown } shape matching impl.`
 
 ### Deprecated
 - v0.1 manifest format — will be superseded once Scope Contracts replace it end-to-end.

@@ -1,0 +1,43 @@
+{
+  "scope_contract_version": "0.1",
+  "contract_id": "operational_v1",
+  "agent_id": "agentmarshal:contract/operational_v1",
+  "issuer": {
+    "type": "system",
+    "id": "agentmarshal:seed",
+    "display_name": "AgentMarshal seed contracts (v0.2 Bubble 7)"
+  },
+  "issued_at": "2026-05-23T00:00:00Z",
+  "declared_scope": [
+    {
+      "rule_id": "operational-v1-base",
+      "description": "Operational contract for COO / InboxAllocator surfaces: sender reputation above threshold, pipeline buffer healthy, scrape budget within monthly cap, inbox capacity above floor (per agents.md §2 operational_v1).",
+      "match": {
+        "subject": { "id": { "exists": true } }
+      },
+      "composite_checks": [
+        {
+          "predicate": "sender_reputation_above_threshold",
+          "input": { "sender_id": "seed-sender-id" }
+        },
+        {
+          "predicate": "pipeline_buffer_within_target_band",
+          "input": { "planned_send_count": 1000 }
+        },
+        {
+          "predicate": "scrape_budget_within_monthly_cap",
+          "input": { "projected_spend_usd": 10 }
+        },
+        {
+          "predicate": "inbox_send_capacity_above_floor",
+          "input": { "target_send_count": 100 }
+        }
+      ],
+      "decision": {
+        "effect": "allow",
+        "reason_code": "OPERATIONAL_V1_ALLOWED",
+        "reason": "Operational v1 composite checks passed."
+      }
+    }
+  ]
+}

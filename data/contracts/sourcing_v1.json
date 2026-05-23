@@ -1,0 +1,50 @@
+{
+  "scope_contract_version": "0.1",
+  "contract_id": "sourcing_v1",
+  "agent_id": "agentmarshal:contract/sourcing_v1",
+  "issuer": {
+    "type": "system",
+    "id": "agentmarshal:seed",
+    "display_name": "AgentMarshal seed contracts (v0.2 Bubble 7)"
+  },
+  "issued_at": "2026-05-23T00:00:00Z",
+  "declared_scope": [
+    {
+      "rule_id": "sourcing-v1-base",
+      "description": "Sourcing contract for LeadScraper / Validator surfaces: provenance recorded, BD dataset subscription active, ToS compliant, robots.txt honored, source attribution retained (per agents.md §2 sourcing_v1).",
+      "match": {
+        "subject": { "id": { "exists": true } }
+      },
+      "composite_checks": [
+        {
+          "predicate": "data_source_provenance_recorded",
+          "input": { "lead_id": "seed-lead-id" }
+        },
+        {
+          "predicate": "bd_dataset_subscription_active",
+          "input": { "dataset_id": "linkedin_company" }
+        },
+        {
+          "predicate": "data_acquisition_tos_compliant",
+          "input": {
+            "source_url": "https://seed-example.com/contractors",
+            "acquisition_method": "bd_licensed"
+          }
+        },
+        {
+          "predicate": "source_robots_txt_honored",
+          "input": { "source_url": "https://seed-example.com/contractors" }
+        },
+        {
+          "predicate": "source_attribution_retained",
+          "input": { "lead_id": "seed-lead-id" }
+        }
+      ],
+      "decision": {
+        "effect": "allow",
+        "reason_code": "SOURCING_V1_ALLOWED",
+        "reason": "Sourcing v1 composite checks passed."
+      }
+    }
+  ]
+}

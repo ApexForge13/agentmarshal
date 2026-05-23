@@ -160,7 +160,29 @@
           "type": "string"
         },
         "match": { "$ref": "#/$defs/MatchPredicates" },
+        "composite_checks": {
+          "description": "Optional ordered list of composite predicate invocations. Each entry names a composite predicate registered via registerComposite() and supplies its input. All composites must be allowable (per isAllowable: pass-only; fail or stub blocks) for this rule's decision.effect to apply. A failed/stub composite causes the rule to be treated as non-matching, and the evaluator continues to the next rule. Omit composite_checks for pure match/decision rules.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/CompositeCheck" }
+        },
         "decision": { "$ref": "#/$defs/Decision" }
+      },
+      "additionalProperties": false
+    },
+
+    "CompositeCheck": {
+      "description": "A single composite-predicate invocation. The named composite must be registered in the dispatch registry at evaluation time; its evaluate() receives the supplied input. Input is intentionally untyped at the contract-schema layer — each composite predicate ships its own input schema (CompositePredicate.inputSchema) and the dispatcher validates against that before invoking evaluate().",
+      "type": "object",
+      "required": ["predicate"],
+      "properties": {
+        "predicate": {
+          "description": "Name of the composite predicate as registered via registerComposite(). Must match the composite's `name` field exactly.",
+          "type": "string",
+          "minLength": 1
+        },
+        "input": {
+          "description": "Opaque input value passed to the composite's evaluate(). Schema is enforced by the composite's own inputSchema, not by the contract schema."
+        }
       },
       "additionalProperties": false
     },

@@ -1,0 +1,12 @@
+{
+  "voice-001": "voice_v1",
+  "leadscraper-001": "sourcing_v1",
+  "validator-001": "sourcing_v1",
+  "coo-001": "operational_v1",
+  "inbox-allocator-001": "operational_v1",
+  "campaign-manager-001": "outreach_v1",
+  "response-handler-001": "outreach_v1",
+  "personalizer-001": "operational_v1",
+  "inbox-provisioner-001": "operational_v1",
+  "regulatory-monitor-001": "operational_v1"
+}

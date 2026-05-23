@@ -1,0 +1,43 @@
+{
+  "scope_contract_version": "0.1",
+  "contract_id": "voice_v1",
+  "agent_id": "agentmarshal:contract/voice_v1",
+  "issuer": {
+    "type": "system",
+    "id": "agentmarshal:seed",
+    "display_name": "AgentMarshal seed contracts (v0.2 Bubble 7)"
+  },
+  "issued_at": "2026-05-23T00:00:00Z",
+  "declared_scope": [
+    {
+      "rule_id": "voice-v1-base",
+      "description": "Voice channel contract: TCPA quiet-hours plus voice-specific runtime checks for recording consent, abandonment rate, and caller-ID accuracy (per agents.md §2.2). Layered on outreach_v1; the Voice agent must satisfy both contracts in production routing.",
+      "match": {
+        "subject": { "id": { "exists": true } }
+      },
+      "composite_checks": [
+        {
+          "predicate": "tcpa_quiet_hours_respected",
+          "input": { "recipient_timezone": "America/New_York" }
+        },
+        {
+          "predicate": "voice_recording_consent_state_resolved",
+          "input": { "caller_state": "TX", "call_id": "seed-call-id" }
+        },
+        {
+          "predicate": "voice_abandonment_rate_compliant",
+          "input": { "voice_agent_id": "seed-voice-agent" }
+        },
+        {
+          "predicate": "voice_caller_id_accurate",
+          "input": { "call_id": "seed-call-id" }
+        }
+      ],
+      "decision": {
+        "effect": "allow",
+        "reason_code": "VOICE_V1_ALLOWED",
+        "reason": "Voice v1 composite checks passed."
+      }
+    }
+  ]
+}

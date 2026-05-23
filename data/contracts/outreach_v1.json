@@ -1,0 +1,43 @@
+{
+  "scope_contract_version": "0.1",
+  "contract_id": "outreach_v1",
+  "agent_id": "agentmarshal:contract/outreach_v1",
+  "issuer": {
+    "type": "system",
+    "id": "agentmarshal:seed",
+    "display_name": "AgentMarshal seed contracts (v0.2 Bubble 7)"
+  },
+  "issued_at": "2026-05-23T00:00:00Z",
+  "declared_scope": [
+    {
+      "rule_id": "outreach-v1-base",
+      "description": "Base outreach contract: TCPA quiet-hours, consent, revocation, and caller-ID disclosure must all hold (per agents.md §2.1). Composite inputs are seed placeholders; production-grade contracts will template these from the AuthZEN request once a contract expression language lands.",
+      "match": {
+        "subject": { "id": { "exists": true } }
+      },
+      "composite_checks": [
+        {
+          "predicate": "tcpa_quiet_hours_respected",
+          "input": { "recipient_timezone": "America/New_York" }
+        },
+        {
+          "predicate": "tcpa_consent_present",
+          "input": { "call_type": "informational" }
+        },
+        {
+          "predicate": "tcpa_revocation_honored",
+          "input": { "recipient_phone": "+15555550100" }
+        },
+        {
+          "predicate": "tcpa_caller_id_disclosed",
+          "input": {}
+        }
+      ],
+      "decision": {
+        "effect": "allow",
+        "reason_code": "OUTREACH_V1_ALLOWED",
+        "reason": "Outreach v1 composite checks passed."
+      }
+    }
+  ]
+}

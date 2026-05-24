@@ -1,0 +1,666 @@
+{
+  "valid_receipt": {
+    "record_type": "compliance_receipt",
+    "receipt_version": "0.1",
+    "schema_version": "0.1",
+    "receipt_id": "11111111-1111-4111-8111-111111111111",
+    "previous_receipt_hash": null,
+    "canonical_form": "rfc8785",
+    "issued_at": "2026-05-24T18:20:30.336Z",
+    "code_version": "agentmarshal-v0.2-bubble10",
+    "contract_id": "voice_v1",
+    "contract_version": "0.1",
+    "tenant_id": "default",
+    "agent_id": "voice-001",
+    "evaluation_id": "33333333-3333-4333-8333-333333333333",
+    "request_id": "44444444-4444-4444-8444-444444444444",
+    "decision": {
+      "effect": "deny",
+      "evaluation_path": "no_match",
+      "matched_rule_id": null,
+      "reason_code": "NO_MATCH_IMPLICIT_DENY",
+      "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+    },
+    "predicate_evaluations": [
+      {
+        "rule_id": "voice-v1-base",
+        "predicate_path": "subject.id",
+        "constraint": {
+          "exists": true
+        },
+        "actual_value": "voice-001",
+        "result": "pass",
+        "reason": "subject.id is present"
+      }
+    ],
+    "composite_evaluations": [
+      {
+        "predicate": "voice_recording_consent_state_resolved",
+        "result": "fail",
+        "reason": "recording consent revoked by caller for call demo-call-001 (state TX); record_call must not proceed",
+        "details": {
+          "caller_state": "TX",
+          "call_id": "demo-call-001",
+          "consent_status": "revoked"
+        }
+      },
+      {
+        "predicate": "voice_abandonment_rate_compliant",
+        "result": "stub",
+        "reason": "abandonment-rate telemetry not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      },
+      {
+        "predicate": "voice_prerecorded_disclosure_present",
+        "result": "stub",
+        "reason": "prerecorded-disclosure runtime check not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      },
+      {
+        "predicate": "voice_caller_id_accurate",
+        "result": "stub",
+        "reason": "outbound caller-ID transmission verification not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      }
+    ],
+    "regulatory_state": {
+      "hash": null,
+      "pending": true,
+      "snapshot_source": null,
+      "anchor_timestamp": null,
+      "anchor_method": "pending"
+    },
+    "signatures": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+        "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+        "signature": "5e98e1298d45ffd96825d60e5a286c520bafa16bea4c5dbbd490f42d8b9228ad16b42369a8c97f05c4ceb91cd7cc3fc02906ba51ce5f5d5c96f62c8bb22a220c",
+        "signed_at": "2026-05-24T18:20:30.336Z",
+        "signer_role": "agentmarshal"
+      }
+    ],
+    "receipt_hash": "90fabac76d08d2c5873f8c907f326bd156ce12dbe5d861fd6c8ab56a3442d6b6",
+    "timestamp_token": {
+      "tsa": "FreeTSA",
+      "token_b64": "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",
+      "issued_at": "2026-05-24T18:20:30.000Z"
+    }
+  },
+  "tampered_receipt": {
+    "record_type": "compliance_receipt",
+    "receipt_version": "0.1",
+    "schema_version": "0.1",
+    "receipt_id": "11111111-1111-4111-8111-111111111111",
+    "previous_receipt_hash": null,
+    "canonical_form": "rfc8785",
+    "issued_at": "2026-05-24T18:20:30.336Z",
+    "code_version": "agentmarshal-v0.2-bubble10",
+    "contract_id": "voice_v1",
+    "contract_version": "0.1",
+    "tenant_id": "default",
+    "agent_id": "voice-001",
+    "evaluation_id": "33333333-3333-4333-8333-333333333333",
+    "request_id": "44444444-4444-4444-8444-444444444444",
+    "decision": {
+      "effect": "permit",
+      "evaluation_path": "no_match",
+      "matched_rule_id": null,
+      "reason_code": "TAMPERED_TO_PERMIT",
+      "reason": "decision field altered after signing (tamper demo)"
+    },
+    "predicate_evaluations": [
+      {
+        "rule_id": "voice-v1-base",
+        "predicate_path": "subject.id",
+        "constraint": {
+          "exists": true
+        },
+        "actual_value": "voice-001",
+        "result": "pass",
+        "reason": "subject.id is present"
+      }
+    ],
+    "composite_evaluations": [
+      {
+        "predicate": "voice_recording_consent_state_resolved",
+        "result": "fail",
+        "reason": "recording consent revoked by caller for call demo-call-001 (state TX); record_call must not proceed",
+        "details": {
+          "caller_state": "TX",
+          "call_id": "demo-call-001",
+          "consent_status": "revoked"
+        }
+      },
+      {
+        "predicate": "voice_abandonment_rate_compliant",
+        "result": "stub",
+        "reason": "abandonment-rate telemetry not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      },
+      {
+        "predicate": "voice_prerecorded_disclosure_present",
+        "result": "stub",
+        "reason": "prerecorded-disclosure runtime check not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      },
+      {
+        "predicate": "voice_caller_id_accurate",
+        "result": "stub",
+        "reason": "outbound caller-ID transmission verification not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      }
+    ],
+    "regulatory_state": {
+      "hash": null,
+      "pending": true,
+      "snapshot_source": null,
+      "anchor_timestamp": null,
+      "anchor_method": "pending"
+    },
+    "signatures": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+        "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+        "signature": "5e98e1298d45ffd96825d60e5a286c520bafa16bea4c5dbbd490f42d8b9228ad16b42369a8c97f05c4ceb91cd7cc3fc02906ba51ce5f5d5c96f62c8bb22a220c",
+        "signed_at": "2026-05-24T18:20:30.336Z",
+        "signer_role": "agentmarshal"
+      }
+    ],
+    "receipt_hash": "90fabac76d08d2c5873f8c907f326bd156ce12dbe5d861fd6c8ab56a3442d6b6",
+    "timestamp_token": {
+      "tsa": "FreeTSA",
+      "token_b64": "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",
+      "issued_at": "2026-05-24T18:20:30.000Z"
+    }
+  },
+  "valid_chain": [
+    {
+      "record_type": "compliance_receipt",
+      "receipt_version": "0.1",
+      "schema_version": "0.1",
+      "receipt_id": "0a000001-0000-4000-8000-000000000001",
+      "previous_receipt_hash": null,
+      "canonical_form": "rfc8785",
+      "issued_at": "2026-05-24T10:00:00.000Z",
+      "code_version": "agentmarshal-v0.2-bubble12",
+      "contract_id": "voice_v1",
+      "contract_version": "0.1",
+      "tenant_id": "default",
+      "agent_id": "voice-001",
+      "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+      "request_id": "5e000000-0000-4000-8000-00000000req1",
+      "decision": {
+        "effect": "deny",
+        "evaluation_path": "no_match",
+        "matched_rule_id": null,
+        "reason_code": "NO_MATCH_IMPLICIT_DENY",
+        "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+      },
+      "predicate_evaluations": [
+        {
+          "rule_id": "chain-base",
+          "predicate_path": "subject.id",
+          "constraint": {
+            "exists": true
+          },
+          "actual_value": "voice-001",
+          "result": "pass",
+          "reason": "subject.id is present"
+        }
+      ],
+      "composite_evaluations": [],
+      "regulatory_state": {
+        "hash": null,
+        "pending": true,
+        "snapshot_source": null,
+        "anchor_timestamp": null,
+        "anchor_method": "pending"
+      },
+      "signatures": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+          "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+          "signature": "a1661752fc1dc0a2835c48173295bebf2d6a43550b1d563617609ba567990ab0cbc0e6164013068b0e838da2c168be2e5c74cddd44760f41eaa1112766f3950c",
+          "signed_at": "2026-05-24T10:00:00.000Z",
+          "signer_role": "agentmarshal"
+        }
+      ],
+      "receipt_hash": "99d0999f8475b93f44dc087ec66cb5baa6aa1882b42ad9943b0e892d1b80ebfb"
+    },
+    {
+      "record_type": "compliance_receipt",
+      "receipt_version": "0.1",
+      "schema_version": "0.1",
+      "receipt_id": "0a000002-0000-4000-8000-000000000002",
+      "previous_receipt_hash": "99d0999f8475b93f44dc087ec66cb5baa6aa1882b42ad9943b0e892d1b80ebfb",
+      "canonical_form": "rfc8785",
+      "issued_at": "2026-05-24T10:01:00.000Z",
+      "code_version": "agentmarshal-v0.2-bubble12",
+      "contract_id": "voice_v1",
+      "contract_version": "0.1",
+      "tenant_id": "default",
+      "agent_id": "voice-001",
+      "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+      "request_id": "5e000000-0000-4000-8000-00000000req1",
+      "decision": {
+        "effect": "deny",
+        "evaluation_path": "no_match",
+        "matched_rule_id": null,
+        "reason_code": "NO_MATCH_IMPLICIT_DENY",
+        "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+      },
+      "predicate_evaluations": [
+        {
+          "rule_id": "chain-base",
+          "predicate_path": "subject.id",
+          "constraint": {
+            "exists": true
+          },
+          "actual_value": "voice-001",
+          "result": "pass",
+          "reason": "subject.id is present"
+        }
+      ],
+      "composite_evaluations": [],
+      "regulatory_state": {
+        "hash": null,
+        "pending": true,
+        "snapshot_source": null,
+        "anchor_timestamp": null,
+        "anchor_method": "pending"
+      },
+      "signatures": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+          "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+          "signature": "7c5cc3b132393ff0d10e97adefd25a0ef2e900f540ea0ccbc7f90ed4b243bf58ed6144da383cad0788fe17a404cf7be25579dcbfac8f3e2b35357de0f0e43209",
+          "signed_at": "2026-05-24T10:01:00.000Z",
+          "signer_role": "agentmarshal"
+        }
+      ],
+      "receipt_hash": "f1515e7b3f540738a1596d629f427312cf91eff56205d9f9e331bc489f2b6f4a"
+    },
+    {
+      "record_type": "compliance_receipt",
+      "receipt_version": "0.1",
+      "schema_version": "0.1",
+      "receipt_id": "0a000003-0000-4000-8000-000000000003",
+      "previous_receipt_hash": "f1515e7b3f540738a1596d629f427312cf91eff56205d9f9e331bc489f2b6f4a",
+      "canonical_form": "rfc8785",
+      "issued_at": "2026-05-24T10:02:00.000Z",
+      "code_version": "agentmarshal-v0.2-bubble12",
+      "contract_id": "voice_v1",
+      "contract_version": "0.1",
+      "tenant_id": "default",
+      "agent_id": "voice-001",
+      "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+      "request_id": "5e000000-0000-4000-8000-00000000req1",
+      "decision": {
+        "effect": "deny",
+        "evaluation_path": "no_match",
+        "matched_rule_id": null,
+        "reason_code": "NO_MATCH_IMPLICIT_DENY",
+        "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+      },
+      "predicate_evaluations": [
+        {
+          "rule_id": "chain-base",
+          "predicate_path": "subject.id",
+          "constraint": {
+            "exists": true
+          },
+          "actual_value": "voice-001",
+          "result": "pass",
+          "reason": "subject.id is present"
+        }
+      ],
+      "composite_evaluations": [],
+      "regulatory_state": {
+        "hash": null,
+        "pending": true,
+        "snapshot_source": null,
+        "anchor_timestamp": null,
+        "anchor_method": "pending"
+      },
+      "signatures": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+          "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+          "signature": "cfee29265cc542ad7b64a20bf8f7aab20925c5c0120add384d44d6bb1215965679b2c25fc12c97a6a22439f63945342ff20023f6c4f5760b1af7101ef5e9db08",
+          "signed_at": "2026-05-24T10:02:00.000Z",
+          "signer_role": "agentmarshal"
+        }
+      ],
+      "receipt_hash": "dfad43c34ec30229ff144d16a166e9021854a61f0ca09dc9450051989a5736e2"
+    }
+  ],
+  "broken_chain": [
+    {
+      "record_type": "compliance_receipt",
+      "receipt_version": "0.1",
+      "schema_version": "0.1",
+      "receipt_id": "0b000001-0000-4000-8000-000000000001",
+      "previous_receipt_hash": null,
+      "canonical_form": "rfc8785",
+      "issued_at": "2026-05-24T09:00:00.000Z",
+      "code_version": "agentmarshal-v0.2-bubble12",
+      "contract_id": "voice_v1",
+      "contract_version": "0.1",
+      "tenant_id": "default",
+      "agent_id": "voice-001",
+      "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+      "request_id": "5e000000-0000-4000-8000-00000000req1",
+      "decision": {
+        "effect": "deny",
+        "evaluation_path": "no_match",
+        "matched_rule_id": null,
+        "reason_code": "NO_MATCH_IMPLICIT_DENY",
+        "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+      },
+      "predicate_evaluations": [
+        {
+          "rule_id": "chain-base",
+          "predicate_path": "subject.id",
+          "constraint": {
+            "exists": true
+          },
+          "actual_value": "voice-001",
+          "result": "pass",
+          "reason": "subject.id is present"
+        }
+      ],
+      "composite_evaluations": [],
+      "regulatory_state": {
+        "hash": null,
+        "pending": true,
+        "snapshot_source": null,
+        "anchor_timestamp": null,
+        "anchor_method": "pending"
+      },
+      "signatures": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+          "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+          "signature": "158806342b411a4e75bee28912aaf187bed8fe66efab52cc6c32072b1d0815f417fb5a4947a5049a4342ca71c154237c036f1e61aad01d2ff66da43dbbf2110c",
+          "signed_at": "2026-05-24T09:00:00.000Z",
+          "signer_role": "agentmarshal"
+        }
+      ],
+      "receipt_hash": "abec014b8ad6e2fe58bf1e71f9d95f98bf1de739307e4bf3d658a290086eb645"
+    },
+    {
+      "record_type": "compliance_receipt",
+      "receipt_version": "0.1",
+      "schema_version": "0.1",
+      "receipt_id": "0b000002-0000-4000-8000-000000000002",
+      "previous_receipt_hash": "48b657e8a1ef6056695a7a4e94a827a5b675db1dad7012efaaa5307817ffe653",
+      "canonical_form": "rfc8785",
+      "issued_at": "2026-05-24T09:02:00.000Z",
+      "code_version": "agentmarshal-v0.2-bubble12",
+      "contract_id": "voice_v1",
+      "contract_version": "0.1",
+      "tenant_id": "default",
+      "agent_id": "voice-001",
+      "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+      "request_id": "5e000000-0000-4000-8000-00000000req1",
+      "decision": {
+        "effect": "deny",
+        "evaluation_path": "no_match",
+        "matched_rule_id": null,
+        "reason_code": "NO_MATCH_IMPLICIT_DENY",
+        "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+      },
+      "predicate_evaluations": [
+        {
+          "rule_id": "chain-base",
+          "predicate_path": "subject.id",
+          "constraint": {
+            "exists": true
+          },
+          "actual_value": "voice-001",
+          "result": "pass",
+          "reason": "subject.id is present"
+        }
+      ],
+      "composite_evaluations": [],
+      "regulatory_state": {
+        "hash": null,
+        "pending": true,
+        "snapshot_source": null,
+        "anchor_timestamp": null,
+        "anchor_method": "pending"
+      },
+      "signatures": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+          "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+          "signature": "fbb381cd2c607e25307a6106cb4d5fe3a183b8c427f9c39acd70b98b212c1169d64bb7fdc7cbef3bac1c0eaf045af09dab29c79941f6c49245f3957dd295aa0a",
+          "signed_at": "2026-05-24T09:02:00.000Z",
+          "signer_role": "agentmarshal"
+        }
+      ],
+      "receipt_hash": "d8dbfab1ea2d3ee56b900d1361b47efe67e633af2e434a3a8aafb3fcad2bc374"
+    },
+    {
+      "record_type": "compliance_receipt",
+      "receipt_version": "0.1",
+      "schema_version": "0.1",
+      "receipt_id": "0b000003-0000-4000-8000-000000000003",
+      "previous_receipt_hash": "d8dbfab1ea2d3ee56b900d1361b47efe67e633af2e434a3a8aafb3fcad2bc374",
+      "canonical_form": "rfc8785",
+      "issued_at": "2026-05-24T09:03:00.000Z",
+      "code_version": "agentmarshal-v0.2-bubble12",
+      "contract_id": "voice_v1",
+      "contract_version": "0.1",
+      "tenant_id": "default",
+      "agent_id": "voice-001",
+      "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+      "request_id": "5e000000-0000-4000-8000-00000000req1",
+      "decision": {
+        "effect": "deny",
+        "evaluation_path": "no_match",
+        "matched_rule_id": null,
+        "reason_code": "NO_MATCH_IMPLICIT_DENY",
+        "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+      },
+      "predicate_evaluations": [
+        {
+          "rule_id": "chain-base",
+          "predicate_path": "subject.id",
+          "constraint": {
+            "exists": true
+          },
+          "actual_value": "voice-001",
+          "result": "pass",
+          "reason": "subject.id is present"
+        }
+      ],
+      "composite_evaluations": [],
+      "regulatory_state": {
+        "hash": null,
+        "pending": true,
+        "snapshot_source": null,
+        "anchor_timestamp": null,
+        "anchor_method": "pending"
+      },
+      "signatures": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+          "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+          "signature": "ab41ba0798eb8d25abf3d611c1b4a55285cbde59da70c6045627ef33f185008e177a088f25c96dedcdc5835ff46ee384c041cd4940ac828f9ec315e55057d007",
+          "signed_at": "2026-05-24T09:03:00.000Z",
+          "signer_role": "agentmarshal"
+        }
+      ],
+      "receipt_hash": "45d34c1f85c8969b7daabdff8b576dba5a64f7adac6dc90ff5718da18e684036"
+    }
+  ],
+  "backdated_receipt": {
+    "record_type": "compliance_receipt",
+    "receipt_version": "0.1",
+    "schema_version": "0.1",
+    "receipt_id": "11111111-1111-4111-8111-111111111111",
+    "previous_receipt_hash": null,
+    "canonical_form": "rfc8785",
+    "issued_at": "2026-05-24T18:10:30.000Z",
+    "code_version": "agentmarshal-v0.2-bubble10",
+    "contract_id": "voice_v1",
+    "contract_version": "0.1",
+    "tenant_id": "default",
+    "agent_id": "voice-001",
+    "evaluation_id": "33333333-3333-4333-8333-333333333333",
+    "request_id": "44444444-4444-4444-8444-444444444444",
+    "decision": {
+      "effect": "deny",
+      "evaluation_path": "no_match",
+      "matched_rule_id": null,
+      "reason_code": "NO_MATCH_IMPLICIT_DENY",
+      "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+    },
+    "predicate_evaluations": [
+      {
+        "rule_id": "voice-v1-base",
+        "predicate_path": "subject.id",
+        "constraint": {
+          "exists": true
+        },
+        "actual_value": "voice-001",
+        "result": "pass",
+        "reason": "subject.id is present"
+      }
+    ],
+    "composite_evaluations": [
+      {
+        "predicate": "voice_recording_consent_state_resolved",
+        "result": "fail",
+        "reason": "recording consent revoked by caller for call demo-call-001 (state TX); record_call must not proceed",
+        "details": {
+          "caller_state": "TX",
+          "call_id": "demo-call-001",
+          "consent_status": "revoked"
+        }
+      },
+      {
+        "predicate": "voice_abandonment_rate_compliant",
+        "result": "stub",
+        "reason": "abandonment-rate telemetry not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      },
+      {
+        "predicate": "voice_prerecorded_disclosure_present",
+        "result": "stub",
+        "reason": "prerecorded-disclosure runtime check not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      },
+      {
+        "predicate": "voice_caller_id_accurate",
+        "result": "stub",
+        "reason": "outbound caller-ID transmission verification not yet implemented",
+        "details": {
+          "deferred_to": "Voice agent integration"
+        }
+      }
+    ],
+    "regulatory_state": {
+      "hash": null,
+      "pending": true,
+      "snapshot_source": null,
+      "anchor_timestamp": null,
+      "anchor_method": "pending"
+    },
+    "signatures": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+        "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+        "signature": "1bb8d87126e1b11fdfa8ea75ce04cc7d1c6ff77cbe47f5532c81a7299823fa281d9e8d5a9bb844639a2de20228e3fd3831ea0caeb92241fb2d7aca256a5f8502",
+        "signed_at": "2026-05-24T18:10:30.000Z",
+        "signer_role": "agentmarshal"
+      }
+    ],
+    "receipt_hash": "90fabac76d08d2c5873f8c907f326bd156ce12dbe5d861fd6c8ab56a3442d6b6",
+    "timestamp_token": {
+      "tsa": "FreeTSA",
+      "token_b64": "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",
+      "issued_at": "2026-05-24T18:20:30.000Z"
+    }
+  },
+  "forged_receipt": {
+    "record_type": "compliance_receipt",
+    "receipt_version": "0.1",
+    "schema_version": "0.1",
+    "receipt_id": "0f000001-0000-4000-8000-00000000000f",
+    "previous_receipt_hash": null,
+    "canonical_form": "rfc8785",
+    "issued_at": "2026-05-24T11:00:00.000Z",
+    "code_version": "agentmarshal-v0.2-bubble12",
+    "contract_id": "voice_v1",
+    "contract_version": "0.1",
+    "tenant_id": "default",
+    "agent_id": "voice-001",
+    "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+    "request_id": "5e000000-0000-4000-8000-00000000req1",
+    "decision": {
+      "effect": "deny",
+      "evaluation_path": "no_match",
+      "matched_rule_id": null,
+      "reason_code": "NO_MATCH_IMPLICIT_DENY",
+      "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+    },
+    "predicate_evaluations": [
+      {
+        "rule_id": "chain-base",
+        "predicate_path": "subject.id",
+        "constraint": {
+          "exists": true
+        },
+        "actual_value": "voice-001",
+        "result": "pass",
+        "reason": "subject.id is present"
+      }
+    ],
+    "composite_evaluations": [],
+    "regulatory_state": {
+      "hash": null,
+      "pending": true,
+      "snapshot_source": null,
+      "anchor_timestamp": null,
+      "anchor_method": "pending"
+    },
+    "signatures": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "am-CYLsOFDV9a7kPWtqRyIfr_gu-R_cbuKYy_vZYRUxz6M",
+        "public_key_fingerprint": "5e9da740b15ddc52cdf4f19cd223c72074c38151d0a43fbefa2fe8c75d3561ef",
+        "signature": "c37d211875234d69aea823552c34d8134f747bea48866935b2f4bcde674c3dee0464304251490a1013c25bf20af64ec2d4384e3150c212769b4e9b732cd93e04",
+        "signed_at": "2026-05-24T11:00:00.000Z",
+        "signer_role": "agentmarshal"
+      }
+    ],
+    "receipt_hash": "34e351e7e2987acf769e6b45aa1e1371190df38952231424f19072b236e9056d"
+  }
+}

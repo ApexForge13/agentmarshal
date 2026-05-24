@@ -13,9 +13,14 @@ import { FileKeyProvider } from '@/lib/compliance/keys/file-provider';
 import type { EvaluationResult } from '@/types/authzen';
 import type { Timestamper } from '@/lib/compliance/timestamp/types';
 
+// issued_at / signed_at are NO LONGER hardcoded: they are sourced from the gated
+// FreeTSA capture's recorded issued_at (tests/timestamp/fixtures/freetsa-tokens.json)
+// and injected by the caller — see BuildExamplesOptions. This keeps issued_at ≈ the
+// token's genTime (capture stamps the hash of the issued_at body within ~1s), which
+// is a precondition for verifyReceipt's timestamp/issued_at cross-check (Bubble 12).
+// Pinning issued_at to a round constant (the prior approach) left a ~22.5h gap that
+// the cross-check would have flagged as a false-positive backdating.
 const FIXED = {
-  issuedAt: new Date('2026-05-23T18:00:00.000Z'),
-  signedAt: new Date('2026-05-23T18:00:00.000Z'),
   codeVersion: 'agentmarshal-v0.2-bubble10',
   receiptId: '11111111-1111-4111-8111-111111111111',
   auditRecordId: 'ia-22222222-2222-4222-8222-222222222222',
@@ -99,11 +104,25 @@ export interface VerifyExamples {
   tampered_compliance: Record<string, unknown>;
 }
 
-// `timestamper` is injected by the generator so the committed examples carry real
-// FreeTSA timestamp tokens deterministically (replayed from captured fixtures) —
-// CI never hits the network. Omit it and the examples build without timestamps.
-export async function buildExamples(timestamper?: Timestamper): Promise<VerifyExamples> {
+export interface BuildExamplesOptions {
+  // Injected by the generator so the committed examples carry real FreeTSA timestamp
+  // tokens deterministically (replayed from captured fixtures) — CI never hits the
+  // network. Omit it and the examples build without timestamps.
+  timestamper?: Timestamper;
+  // issued_at + signed_at for the deterministic examples. Sourced from the gated
+  // FreeTSA capture's recorded issued_at so issued_at ≈ the token's genTime (see the
+  // FIXED comment above). The capture test passes a fresh `new Date()`; the example
+  // generator reads it back from freetsa-tokens.json. Required — never defaulted to a
+  // constant, which would reintroduce the issued_at/genTime gap.
+  issuedAt: Date;
+}
+
+export async function buildExamples({
+  timestamper,
+  issuedAt,
+}: BuildExamplesOptions): Promise<VerifyExamples> {
   const handle = await new FileKeyProvider().getActiveSigningHandle();
+  const signedAt = issuedAt;
 
   const receipt = await buildReceipt({
     evaluationResult: VOICE_DENY,
@@ -115,9 +134,9 @@ export async function buildExamples(timestamper?: Timestamper): Promise<VerifyEx
     requestId: FIXED.requestId,
     codeVersion: FIXED.codeVersion,
     previousReceiptHash: null,
-    issuedAt: FIXED.issuedAt,
+    issuedAt,
     receiptId: FIXED.receiptId,
-    signers: [{ handle, role: 'agentmarshal', signedAt: FIXED.signedAt }],
+    signers: [{ handle, role: 'agentmarshal', signedAt }],
     timestamper,
   });
 
@@ -134,9 +153,9 @@ export async function buildExamples(timestamper?: Timestamper): Promise<VerifyEx
     action: { type: 'score_lead', inputs: { lead_id: 'lead-1234' }, outputs: {} },
     contract: { id: 'operational_v1', version: '0.1' },
     previousAuditHash: null,
-    issuedAt: FIXED.issuedAt,
+    issuedAt,
     recordId: FIXED.auditRecordId,
-    signers: [{ handle, role: 'agentmarshal', signedAt: FIXED.signedAt }],
+    signers: [{ handle, role: 'agentmarshal', signedAt }],
     timestamper,
   })) as unknown as Record<string, unknown>;
 

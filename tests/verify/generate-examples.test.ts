@@ -12,7 +12,7 @@ import path from 'path';
 import { buildExamples } from '../../lib/verify/build-examples';
 import { verifyReceipt } from '../../lib/verify/verify-receipt';
 import { clearPublicKeyCache } from '../../lib/verify/load-public-key';
-import { createReplayTimestamper } from '../timestamp/fixtures/replay';
+import { createReplayTimestamper, fixtureIssuedAt } from '../timestamp/fixtures/replay';
 
 const OUT_PATH = path.resolve(process.cwd(), 'data', 'verify', 'example-receipts.json');
 const SHOULD_WRITE = process.env.GENERATE_VERIFY_EXAMPLES === '1';
@@ -21,8 +21,13 @@ describe('verify example generation', () => {
   it('builds deterministic examples that round-trip (and writes when asked)', async () => {
     clearPublicKeyCache();
     // Replay captured FreeTSA tokens so the committed examples carry real, offline-
-    // verifiable timestamps without CI hitting the network.
-    const examples = await buildExamples(createReplayTimestamper());
+    // verifiable timestamps without CI hitting the network. issued_at is read back
+    // from the capture fixture so the rebuilt receipt_hash matches the captured token
+    // AND issued_at ≈ genTime (within the Bubble 12 cross-check tolerance).
+    const examples = await buildExamples({
+      timestamper: createReplayTimestamper(),
+      issuedAt: new Date(fixtureIssuedAt),
+    });
 
     if (SHOULD_WRITE) {
       mkdirSync(path.dirname(OUT_PATH), { recursive: true });

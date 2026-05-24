@@ -31,6 +31,11 @@ const BLOCKLIST_PATTERNS: RegExp[] = [
 const DANGEROUS_ACTIONS = new Set<string>(['drop_table', 'delete_all']);
 
 export function evaluateTrackB(scenario: BenchmarkScenario): TrackResult {
+  // The runner only routes structural-authz scenarios here (audit_trail uses a separate
+  // verifier path), so request is always present; guard for the optional type.
+  if (!scenario.request) {
+    throw new Error(`evaluateTrackB: scenario ${scenario.id} is missing request`);
+  }
   const req = scenario.request as unknown as Record<string, unknown>;
 
   // (1) JSON schema sanity: required fields + agent_type membership.

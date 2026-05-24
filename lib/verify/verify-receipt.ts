@@ -190,6 +190,17 @@ export async function verifyReceipt(input: unknown): Promise<VerifyResult> {
     return { verified: false, record_type: recordType, reason, timestamp };
   }
 
+  // Timestamp/issued_at cross-check (Bubble 12). A signature-valid receipt can still
+  // be backdated: an operator re-signs a receipt with an earlier issued_at to claim
+  // "we ran this check before the violation." The RFC 3161 token's genTime is signed
+  // by the TSA and cannot be moved, so when a verifying timestamp is present we
+  // require issued_at to sit within ±5 minutes of it (clock skew + TSA roundtrip;
+  // tighter false-positives, looser misses reasonable backdating). The authoritative
+  // time is timestamp.timestamp_at — the genTime re-derived from the signed token,
+  // NOT the self-reported timestamp_token.issued_at (which an operator could edit).
+  const crossCheck = crossCheckIssuedAt(recordType, input, timestamp);
+  if (crossCheck) return crossCheck;
+
   return {
     verified: true,
     record_type: recordType,
@@ -197,4 +208,43 @@ export async function verifyReceipt(input: unknown): Promise<VerifyResult> {
     details: extractDetails(recordType, input),
     timestamp,
   };
+}
+
+const ISSUED_AT_TOLERANCE_MS = 5 * 60 * 1000;
+
+/** Returns a verified:false verdict when issued_at and the verifying external
+ *  timestamp disagree beyond tolerance; null when they agree (or no verifying
+ *  timestamp / no parseable issued_at exists to check). */
+function crossCheckIssuedAt(
+  recordType: RecordTypeDiscriminant,
+  obj: Obj,
+  timestamp: TimestampResult,
+): VerifyResult | null {
+  if (timestamp.status !== 'timestamped') return null;
+  const issuedMs = typeof obj.issued_at === 'string' ? Date.parse(obj.issued_at) : NaN;
+  const genMs = Date.parse(timestamp.timestamp_at);
+  if (Number.isNaN(issuedMs) || Number.isNaN(genMs)) return null;
+
+  const skewMs = genMs - issuedMs; // > 0 ⇒ issued_at precedes the external timestamp
+  if (skewMs > ISSUED_AT_TOLERANCE_MS) {
+    return {
+      verified: false,
+      record_type: recordType,
+      reason:
+        `issued_at predates external timestamp by ${Math.round(skewMs / 60000)} min ` +
+        `(issued_at ${new Date(issuedMs).toISOString()} vs TSA genTime ${timestamp.timestamp_at}); receipt appears backdated`,
+      timestamp,
+    };
+  }
+  if (skewMs < -ISSUED_AT_TOLERANCE_MS) {
+    return {
+      verified: false,
+      record_type: recordType,
+      reason:
+        `issued_at significantly later than external timestamp by ${Math.round(-skewMs / 60000)} min ` +
+        `(issued_at ${new Date(issuedMs).toISOString()} vs TSA genTime ${timestamp.timestamp_at})`,
+      timestamp,
+    };
+  }
+  return null;
 }

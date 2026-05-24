@@ -1,0 +1,64 @@
+{
+  "id": "audit_trail-04-adv-forged-signature",
+  "category": "audit_trail",
+  "adversarial": true,
+  "description": "Operator signs a receipt with a non-canonical Ed25519 key (different fingerprint than AgentMarshal's published key) to forge an audit entry.",
+  "target": {
+    "kind": "single",
+    "receipt": {
+      "record_type": "compliance_receipt",
+      "receipt_version": "0.1",
+      "schema_version": "0.1",
+      "receipt_id": "0f000001-0000-4000-8000-00000000000f",
+      "previous_receipt_hash": null,
+      "canonical_form": "rfc8785",
+      "issued_at": "2026-05-24T11:00:00.000Z",
+      "code_version": "agentmarshal-v0.2-bubble12",
+      "contract_id": "voice_v1",
+      "contract_version": "0.1",
+      "tenant_id": "default",
+      "agent_id": "voice-001",
+      "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+      "request_id": "5e000000-0000-4000-8000-00000000req1",
+      "decision": {
+        "effect": "deny",
+        "evaluation_path": "no_match",
+        "matched_rule_id": null,
+        "reason_code": "NO_MATCH_IMPLICIT_DENY",
+        "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+      },
+      "predicate_evaluations": [
+        {
+          "rule_id": "chain-base",
+          "predicate_path": "subject.id",
+          "constraint": {
+            "exists": true
+          },
+          "actual_value": "voice-001",
+          "result": "pass",
+          "reason": "subject.id is present"
+        }
+      ],
+      "composite_evaluations": [],
+      "regulatory_state": {
+        "hash": null,
+        "pending": true,
+        "snapshot_source": null,
+        "anchor_timestamp": null,
+        "anchor_method": "pending"
+      },
+      "signatures": [
+        {
+          "algorithm": "ed25519",
+          "key_id": "am-CYLsOFDV9a7kPWtqRyIfr_gu-R_cbuKYy_vZYRUxz6M",
+          "public_key_fingerprint": "5e9da740b15ddc52cdf4f19cd223c72074c38151d0a43fbefa2fe8c75d3561ef",
+          "signature": "c37d211875234d69aea823552c34d8134f747bea48866935b2f4bcde674c3dee0464304251490a1013c25bf20af64ec2d4384e3150c212769b4e9b732cd93e04",
+          "signed_at": "2026-05-24T11:00:00.000Z",
+          "signer_role": "agentmarshal"
+        }
+      ],
+      "receipt_hash": "34e351e7e2987acf769e6b45aa1e1371190df38952231424f19072b236e9056d"
+    }
+  },
+  "expected": "catch"
+}

@@ -1,0 +1,174 @@
+{
+  "id": "audit_trail-02-adv-broken-chain",
+  "category": "audit_trail",
+  "adversarial": true,
+  "description": "Operator removes a 'deny' receipt from the middle of an audit chain to hide a violation. The next receipt's previous_receipt_hash no longer chains.",
+  "target": {
+    "kind": "chain",
+    "receipts": [
+      {
+        "record_type": "compliance_receipt",
+        "receipt_version": "0.1",
+        "schema_version": "0.1",
+        "receipt_id": "0b000001-0000-4000-8000-000000000001",
+        "previous_receipt_hash": null,
+        "canonical_form": "rfc8785",
+        "issued_at": "2026-05-24T09:00:00.000Z",
+        "code_version": "agentmarshal-v0.2-bubble12",
+        "contract_id": "voice_v1",
+        "contract_version": "0.1",
+        "tenant_id": "default",
+        "agent_id": "voice-001",
+        "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+        "request_id": "5e000000-0000-4000-8000-00000000req1",
+        "decision": {
+          "effect": "deny",
+          "evaluation_path": "no_match",
+          "matched_rule_id": null,
+          "reason_code": "NO_MATCH_IMPLICIT_DENY",
+          "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+        },
+        "predicate_evaluations": [
+          {
+            "rule_id": "chain-base",
+            "predicate_path": "subject.id",
+            "constraint": {
+              "exists": true
+            },
+            "actual_value": "voice-001",
+            "result": "pass",
+            "reason": "subject.id is present"
+          }
+        ],
+        "composite_evaluations": [],
+        "regulatory_state": {
+          "hash": null,
+          "pending": true,
+          "snapshot_source": null,
+          "anchor_timestamp": null,
+          "anchor_method": "pending"
+        },
+        "signatures": [
+          {
+            "algorithm": "ed25519",
+            "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+            "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+            "signature": "158806342b411a4e75bee28912aaf187bed8fe66efab52cc6c32072b1d0815f417fb5a4947a5049a4342ca71c154237c036f1e61aad01d2ff66da43dbbf2110c",
+            "signed_at": "2026-05-24T09:00:00.000Z",
+            "signer_role": "agentmarshal"
+          }
+        ],
+        "receipt_hash": "abec014b8ad6e2fe58bf1e71f9d95f98bf1de739307e4bf3d658a290086eb645"
+      },
+      {
+        "record_type": "compliance_receipt",
+        "receipt_version": "0.1",
+        "schema_version": "0.1",
+        "receipt_id": "0b000002-0000-4000-8000-000000000002",
+        "previous_receipt_hash": "48b657e8a1ef6056695a7a4e94a827a5b675db1dad7012efaaa5307817ffe653",
+        "canonical_form": "rfc8785",
+        "issued_at": "2026-05-24T09:02:00.000Z",
+        "code_version": "agentmarshal-v0.2-bubble12",
+        "contract_id": "voice_v1",
+        "contract_version": "0.1",
+        "tenant_id": "default",
+        "agent_id": "voice-001",
+        "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+        "request_id": "5e000000-0000-4000-8000-00000000req1",
+        "decision": {
+          "effect": "deny",
+          "evaluation_path": "no_match",
+          "matched_rule_id": null,
+          "reason_code": "NO_MATCH_IMPLICIT_DENY",
+          "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+        },
+        "predicate_evaluations": [
+          {
+            "rule_id": "chain-base",
+            "predicate_path": "subject.id",
+            "constraint": {
+              "exists": true
+            },
+            "actual_value": "voice-001",
+            "result": "pass",
+            "reason": "subject.id is present"
+          }
+        ],
+        "composite_evaluations": [],
+        "regulatory_state": {
+          "hash": null,
+          "pending": true,
+          "snapshot_source": null,
+          "anchor_timestamp": null,
+          "anchor_method": "pending"
+        },
+        "signatures": [
+          {
+            "algorithm": "ed25519",
+            "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+            "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+            "signature": "fbb381cd2c607e25307a6106cb4d5fe3a183b8c427f9c39acd70b98b212c1169d64bb7fdc7cbef3bac1c0eaf045af09dab29c79941f6c49245f3957dd295aa0a",
+            "signed_at": "2026-05-24T09:02:00.000Z",
+            "signer_role": "agentmarshal"
+          }
+        ],
+        "receipt_hash": "d8dbfab1ea2d3ee56b900d1361b47efe67e633af2e434a3a8aafb3fcad2bc374"
+      },
+      {
+        "record_type": "compliance_receipt",
+        "receipt_version": "0.1",
+        "schema_version": "0.1",
+        "receipt_id": "0b000003-0000-4000-8000-000000000003",
+        "previous_receipt_hash": "d8dbfab1ea2d3ee56b900d1361b47efe67e633af2e434a3a8aafb3fcad2bc374",
+        "canonical_form": "rfc8785",
+        "issued_at": "2026-05-24T09:03:00.000Z",
+        "code_version": "agentmarshal-v0.2-bubble12",
+        "contract_id": "voice_v1",
+        "contract_version": "0.1",
+        "tenant_id": "default",
+        "agent_id": "voice-001",
+        "evaluation_id": "5e000000-0000-4000-8000-00000000eva1",
+        "request_id": "5e000000-0000-4000-8000-00000000req1",
+        "decision": {
+          "effect": "deny",
+          "evaluation_path": "no_match",
+          "matched_rule_id": null,
+          "reason_code": "NO_MATCH_IMPLICIT_DENY",
+          "reason": "No declared_scope rule matched; implicit deny per Scope Contract semantics."
+        },
+        "predicate_evaluations": [
+          {
+            "rule_id": "chain-base",
+            "predicate_path": "subject.id",
+            "constraint": {
+              "exists": true
+            },
+            "actual_value": "voice-001",
+            "result": "pass",
+            "reason": "subject.id is present"
+          }
+        ],
+        "composite_evaluations": [],
+        "regulatory_state": {
+          "hash": null,
+          "pending": true,
+          "snapshot_source": null,
+          "anchor_timestamp": null,
+          "anchor_method": "pending"
+        },
+        "signatures": [
+          {
+            "algorithm": "ed25519",
+            "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+            "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+            "signature": "ab41ba0798eb8d25abf3d611c1b4a55285cbde59da70c6045627ef33f185008e177a088f25c96dedcdc5835ff46ee384c041cd4940ac828f9ec315e55057d007",
+            "signed_at": "2026-05-24T09:03:00.000Z",
+            "signer_role": "agentmarshal"
+          }
+        ],
+        "receipt_hash": "45d34c1f85c8969b7daabdff8b576dba5a64f7adac6dc90ff5718da18e684036"
+      }
+    ]
+  },
+  "expected": "catch"
+}

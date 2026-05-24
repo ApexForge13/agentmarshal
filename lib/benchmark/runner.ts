@@ -9,7 +9,11 @@ import { execSync } from 'child_process';
 import { evaluateTrackA } from './evaluators/track-a';
 import { evaluateTrackB } from './evaluators/track-b';
 import { evaluateTrackC } from './evaluators/track-c';
+import { evaluateTrackCAuditTrail } from './evaluators/track-c-audit-trail';
 import type {
+  AuditTrailAggregate,
+  AuditTrailExpected,
+  AuditTrailScenarioResult,
   BenchmarkCategory,
   BenchmarkResult,
   BenchmarkScenario,
@@ -54,7 +58,13 @@ function resolveCommitSha(): string {
 }
 
 export async function runBenchmark(scenarios?: BenchmarkScenario[]): Promise<BenchmarkResult> {
-  const list = scenarios ?? (await loadScenarios());
+  const all = scenarios ?? (await loadScenarios());
+  // Dispatch by category. Structural-authz scenarios (Section 1) run through tracks
+  // A/B/C exactly as before; audit_trail scenarios (Section 2) run through the
+  // engine-independent verifier path. Keeping `list` = structural preserves every
+  // Section-1 aggregate (total/per-track/per-category/per-scenario) unchanged.
+  const list = all.filter((s) => s.category !== 'audit_trail');
+  const auditTrailScenarios = all.filter((s) => s.category === 'audit_trail');
 
   const allResults: TrackResult[] = [];
   for (const scenario of list) {
@@ -93,13 +103,37 @@ export async function runBenchmark(scenarios?: BenchmarkScenario[]): Promise<Ben
       id: s.id,
       category: s.category,
       adversarial: s.adversarial,
-      expected: s.expected,
+      // `list` is structural-only, so expected is always 'deny' | 'permit' here.
+      expected: s.expected as ExpectedOutcome,
       track_a: a.decision,
       track_b: b.decision,
       track_c: c.decision,
       c_matched: c.matched_expected,
     };
   });
+
+  // Section 2 — audit-trail tampering. Each scenario runs through the verifier (Track C
+  // only; Cedar/OPA have no equivalent artifact, surfaced in the report).
+  const auditResults: AuditTrailScenarioResult[] = [];
+  for (const s of auditTrailScenarios) {
+    const r = await evaluateTrackCAuditTrail(s);
+    auditResults.push({
+      id: s.id,
+      description: s.description,
+      adversarial: s.adversarial,
+      expected: s.expected as AuditTrailExpected,
+      decision: r.decision,
+      matched_expected: r.matched_expected,
+      reason: r.reason ?? '',
+    });
+  }
+  const audit_trail: AuditTrailAggregate | undefined = auditTrailScenarios.length
+    ? {
+        total: auditTrailScenarios.length,
+        agentmarshal_caught: auditResults.filter((r) => r.matched_expected).length,
+        results: auditResults,
+      }
+    : undefined;
 
   return {
     generated_at: new Date().toISOString(),
@@ -110,6 +144,7 @@ export async function runBenchmark(scenarios?: BenchmarkScenario[]): Promise<Ben
     per_track: perTrack,
     per_category: perCategory,
     per_scenario: perScenario,
+    audit_trail,
   };
 }
 

@@ -38,7 +38,13 @@ async function captureFor(hashHex: string): Promise<string> {
 
 describe('capture FreeTSA fixtures (manual, network)', () => {
   it.skipIf(!CAPTURE)('hits real FreeTSA and writes fixtures/freetsa-tokens.json', async () => {
-    const examples = await buildExamples();
+    // Pin issued_at to NOW and build the example bodies with it, so the hash we ask
+    // FreeTSA to stamp is the hash of an issued_at≈now body. FreeTSA's genTime is
+    // wall-clock-now too, so issued_at lands within ~1s of genTime — the precondition
+    // for verifyReceipt's timestamp/issued_at cross-check (Bubble 12). This recorded
+    // issued_at is read back by the example generator so the committed bytes match.
+    const issuedAt = new Date();
+    const examples = await buildExamples({ issuedAt });
     const receiptHash = (examples.valid_compliance as Record<string, unknown>).receipt_hash as string;
     const auditHash = (examples.valid_internal_audit as Record<string, unknown>).audit_hash as string;
 
@@ -48,8 +54,9 @@ describe('capture FreeTSA fixtures (manual, network)', () => {
     ]);
 
     const fixtures = {
-      note: 'Real FreeTSA RFC 3161 responses over the deterministic /verify example hashes. Re-capture with CAPTURE_TSA_FIXTURES=1 if the example seed (and thus receipt_hash/audit_hash) changes.',
+      note: 'Real FreeTSA RFC 3161 responses over the deterministic /verify example hashes. issued_at is the timestamp the example bodies were built with (≈ genTime). Re-capture with CAPTURE_TSA_FIXTURES=1 if the example seed (and thus receipt_hash/audit_hash) changes; the generator reads issued_at back so bytes stay stable.',
       captured_at: new Date().toISOString(),
+      issued_at: issuedAt.toISOString(),
       receipt: { hashHex: receiptHash, responseB64: receiptResp },
       audit: { hashHex: auditHash, responseB64: auditResp },
     };

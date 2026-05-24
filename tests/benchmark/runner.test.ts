@@ -65,4 +65,15 @@ describe('benchmark suite — adversarial-pattern catch rates (Bubble 8b)', () =
         `Report: ${reportPath}`,
     );
   });
+
+  it('dispatches audit_trail scenarios through the verifier, leaving Section 1 at 20', async () => {
+    const result = await runBenchmark();
+    // The 20 structural scenarios are unchanged and no audit_trail row leaks into them.
+    expect(result.total_scenarios).toBe(20);
+    expect(result.per_scenario).toHaveLength(20);
+    expect(result.per_scenario.every((r) => r.category !== 'audit_trail')).toBe(true);
+    // The 5 audit_trail scenarios ran through Track C's verifier path and all matched.
+    expect(result.audit_trail?.total).toBe(5);
+    expect(result.audit_trail?.agentmarshal_caught).toBe(5);
+  });
 });

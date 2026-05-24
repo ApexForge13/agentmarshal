@@ -1,7 +1,7 @@
 # AgentMarshal benchmark — adversarial-pattern catch rates
 
-- Generated: 2026-05-23T22:01:00.511Z
-- Commit: `c1c7bcdad403564f57f150e67848cd7f3821feca`
+- Generated: 2026-05-24T18:54:17.005Z
+- Commit: `b2840c2ea6c8629cdb7a2b314d99deb2123e17b4`
 - Total scenarios: 20 (15 adversarial, 5 legitimate)
 
 ## Summary
@@ -46,6 +46,21 @@
 | spend_cap-02-adv-over-margin | spend_cap | yes | deny | permit | permit | deny | ✓ |
 | spend_cap-03-adv-at-cap | spend_cap | yes | deny | permit | permit | deny | ✓ |
 | spend_cap-04-legit-well-under-cap | spend_cap | no | permit | permit | permit | permit | ✓ |
+
+## Section 2 — Audit-trail tampering (Bubble 12)
+
+Threat model: the OPERATOR adversary attempting to fake their own audit trail to cover up violations, predate compliance checks, or forge approvals. These 5 scenarios test the audit-evidence LAYER — signed receipts, hash-chained sequences, external timestamp anchors, and engine-independent verification — that sits on top of policy decisions.
+
+| Scenario | AgentMarshal | Cedar | OPA |
+|---|---|---|---|
+| A1. Tampered receipt | ✓ caught (signature mismatch) | — no equivalent capability¹ | — no equivalent capability¹ |
+| A2. Broken hash chain | ✓ caught (chain verifier reports break at index 1) | — no equivalent capability¹ | — no equivalent capability¹ |
+| A3. Backdated receipt | ✓ caught (issued_at predates TSA timestamp) | — no equivalent capability¹ | — no equivalent capability¹ |
+| A4. Forged signature | ✓ caught (signed by a different key, fingerprint mismatch) | — no equivalent capability¹ | — no equivalent capability¹ |
+| A5. Offline verification | ✓ supported (lib/verify standalone, no engine access) | — no equivalent capability¹ | — no equivalent capability¹ |
+| **Total** | **5/5** | **0/5** | **0/5** |
+
+¹ Cedar and OPA are policy-decision engines. They do not produce signed audit artifacts, do not maintain decision lineage, do not anchor decisions to external timestamps, and do not support engine-independent verification of past decisions. The 0/5 score is structural: there is no equivalent artifact in their model to catch tampering on. See `/tmp/cedar-opa-spike-report.md` for Spike G’s analysis of where Cedar and OPA tie AgentMarshal (the 20 structural-authz scenarios in Section 1 above) and where they structurally cannot compete (this section).
 
 ## Reproduce
 

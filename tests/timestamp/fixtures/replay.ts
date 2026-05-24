@@ -16,6 +16,15 @@ export const fixtureHashes = {
   audit: fixtures.audit.hashHex,
 };
 
+// The issued_at the captured tokens correspond to (the example bodies were built with
+// it; FreeTSA stamped their hashes at ≈ this instant). Consumers that rebuild the
+// examples MUST use this so receipt_hash matches the captured token. Falls back to the
+// genTime if an older fixture predates the issued_at field.
+export const fixtureIssuedAt: string =
+  (fixtures as { issued_at?: string }).issued_at ??
+  tokenFor(fixtures.receipt.hashHex)?.issued_at ??
+  '';
+
 /** The captured token for a given receipt_hash/audit_hash, or null if not captured. */
 export function tokenFor(hashHex: string): TimestampToken | null {
   const entry = entries.find((e) => e.hashHex.toLowerCase() === hashHex.toLowerCase());

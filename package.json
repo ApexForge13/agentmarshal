@@ -14,6 +14,7 @@
     "test": "vitest run",
     "benchmark": "tsx scripts/run-benchmark.mts",
     "generate:verify-examples": "tsx scripts/generate-verify-examples.mts",
+    "generate:audit-trail-fixtures": "tsx scripts/generate-audit-trail-fixtures.mts",
     "check:freetsa": "tsx scripts/check-freetsa.mts"
   },
   "dependencies": {

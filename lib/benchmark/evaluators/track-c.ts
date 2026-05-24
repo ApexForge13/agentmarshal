@@ -20,6 +20,11 @@ function makeRequest(body: unknown): Request {
 }
 
 export async function evaluateTrackC(scenario: BenchmarkScenario): Promise<TrackResult> {
+  // The runner only routes structural-authz scenarios here; audit_trail goes through
+  // track-c-audit-trail. Guard so the optional request/contract narrow for TS.
+  if (!scenario.request || !scenario.contract) {
+    throw new Error(`evaluateTrackC: scenario ${scenario.id} is missing request/contract`);
+  }
   setContractOverride(scenario.request.subject.id, scenario.contract);
   try {
     const response = await POST(makeRequest(scenario.request));

@@ -19,6 +19,13 @@ const KNOWN_AGENT_TYPES = new Set<string>([
   'InboxProvisioner',
   'Voice',
   'RegulatoryMonitor',
+  // Bubble 13 trading desk. Track B knows the roster but has no sanctions check,
+  // so it permits the sanctioned-counterparty hero (the blind spot only Track C
+  // catches) rather than spuriously rejecting on an unknown agent_type.
+  'TradingAgent',
+  'ResearchAgent',
+  'RiskAgent',
+  'ExecutionAgent',
 ]);
 
 const BLOCKLIST_PATTERNS: RegExp[] = [

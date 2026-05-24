@@ -1,7 +1,7 @@
 // Integration test for the audit-trail tampering suite (Bubble 12, Section 2). Loads
 // every scenario through the runner, confirms the verifier (Track C) catches all five
-// tampers with the right reasons, confirms the existing 20-scenario Section 1 is
-// untouched, and confirms the report renders Section 2's capability matrix.
+// tampers with the right reasons, confirms the 24-scenario Section 1 stays isolated
+// from Section 2, and confirms the report renders Section 2's capability matrix.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
@@ -59,11 +59,11 @@ describe('audit-trail tampering benchmark (Bubble 12 — Section 2)', () => {
     expect(a5.matched_expected).toBe(true);
   });
 
-  it('leaves the existing 20-scenario Section 1 aggregates unchanged', async () => {
+  it('keeps audit-trail scenarios out of the 24-scenario Section 1', async () => {
     const result = await runBenchmark();
-    expect(result.total_scenarios).toBe(20);
-    expect(result.adversarial_count).toBe(15);
-    expect(result.legitimate_count).toBe(5);
+    expect(result.total_scenarios).toBe(24);
+    expect(result.adversarial_count).toBe(16);
+    expect(result.legitimate_count).toBe(8);
     expect(result.per_track.C.false_positives).toBe(0);
     expect(result.per_track.A.caught_adversarial).toBe(0);
   });

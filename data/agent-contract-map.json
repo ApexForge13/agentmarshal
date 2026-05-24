@@ -8,5 +8,9 @@
   "response-handler-001": "outreach_v1",
   "personalizer-001": "operational_v1",
   "inbox-provisioner-001": "operational_v1",
-  "regulatory-monitor-001": "operational_v1"
+  "regulatory-monitor-001": "operational_v1",
+  "TradingAgent": "trading_v1",
+  "ResearchAgent": "trading_v1",
+  "RiskAgent": "trading_v1",
+  "ExecutionAgent": "trading_v1"
 }

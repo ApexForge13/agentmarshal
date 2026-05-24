@@ -112,8 +112,8 @@ function renderAuditTrailSection(audit: AuditTrailAggregate): string[] {
       'The 0/' +
       audit.total +
       ' score is structural: there is no equivalent artifact in their model to catch ' +
-      'tampering on. See `/tmp/cedar-opa-spike-report.md` for Spike G’s analysis of ' +
-      'where Cedar and OPA tie AgentMarshal (the 20 structural-authz scenarios in Section ' +
+      'tampering on. See [docs/spikes/cedar-opa-spike.md](../docs/spikes/cedar-opa-spike.md) for Spike G’s analysis of ' +
+      'where Cedar and OPA tie AgentMarshal (the structural-authz scenarios in Section ' +
       '1 above) and where they structurally cannot compete (this section).',
   );
   lines.push('');

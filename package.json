@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "benchmark": "tsx scripts/run-benchmark.mts"
+    "benchmark": "tsx scripts/run-benchmark.mts",
+    "generate:verify-examples": "tsx scripts/generate-verify-examples.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

@@ -27,6 +27,23 @@ describe('verifyReceipt (Bubble 10)', () => {
     expect(r.details!.decision).toBe('allow');
   });
 
+  it('reports a valid external timestamp alongside the signature (Bubble 11)', async () => {
+    const r = await verifyReceipt(examples.valid_compliance);
+    expect(r.verified).toBe(true);
+    expect(r.timestamp.status).toBe('timestamped');
+    if (r.timestamp.status === 'timestamped') {
+      expect(r.timestamp.tsa).toBe('FreeTSA');
+      expect(r.timestamp.timestamp_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    }
+  });
+
+  it("reports timestamp 'unavailable' for a receipt with no timestamp_token (still signature-valid)", async () => {
+    const { timestamp_token: _omit, ...noTs } = examples.valid_compliance as Record<string, unknown>;
+    const r = await verifyReceipt(noTs);
+    expect(r.verified).toBe(true); // signature is independent of the timestamp
+    expect(r.timestamp.status).toBe('unavailable');
+  });
+
   it("fails a tampered receipt with 'signature mismatch'", async () => {
     const r = await verifyReceipt(examples.tampered_compliance);
     expect(r.verified).toBe(false);

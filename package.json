@@ -13,10 +13,15 @@
     "lint": "eslint",
     "test": "vitest run",
     "benchmark": "tsx scripts/run-benchmark.mts",
-    "generate:verify-examples": "tsx scripts/generate-verify-examples.mts"
+    "generate:verify-examples": "tsx scripts/generate-verify-examples.mts",
+    "check:freetsa": "tsx scripts/check-freetsa.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
+    "@peculiar/asn1-cms": "^2.7.0",
+    "@peculiar/asn1-schema": "^2.7.0",
+    "@peculiar/asn1-tsp": "^2.7.0",
+    "@peculiar/asn1-x509": "^2.7.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "better-sqlite3": "^12.9.0",

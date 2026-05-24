@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import type { PublicKeyInfo } from '@/lib/verify/load-public-key';
 import type { VerifyResult } from '@/lib/verify/verify-receipt';
+import type { TimestampResult } from '@/lib/compliance/timestamp/types';
 
 interface Examples {
   valid_compliance: unknown;
@@ -173,6 +174,48 @@ function ResultPanel({ result }: { result: VerifyResult }) {
           </>
         )}
       </dl>
+
+      <TimestampBlock ts={result.timestamp} />
+    </div>
+  );
+}
+
+// RFC 3161 external timestamp verdict, reported separately from the signature.
+// Developer-facing copy for now; regulator-readable polish lands in a later bubble.
+function TimestampBlock({ ts }: { ts: TimestampResult }) {
+  if (ts.status === 'timestamped') {
+    return (
+      <div className="mt-4 rounded-md border border-emerald-700 bg-emerald-950/30 p-4">
+        <p className="flex items-center gap-2 font-semibold text-emerald-300">
+          <span className="text-emerald-400">✓</span> Timestamp — externally anchored
+        </p>
+        <p className="mt-1 text-sm text-zinc-400">
+          RFC 3161 time anchor by <span className="font-mono">{ts.tsa}</span> at{' '}
+          <span className="font-mono">{ts.timestamp_at}</span>. Third-party proof of WHEN this
+          receipt existed, independent of AgentMarshal&apos;s clock or records.
+        </p>
+      </div>
+    );
+  }
+  if (ts.status === 'unavailable') {
+    return (
+      <div className="mt-4 rounded-md border border-amber-700 bg-amber-950/30 p-4">
+        <p className="flex items-center gap-2 font-semibold text-amber-300">
+          <span className="text-amber-400">⚠</span> Timestamp — not externally timestamped
+        </p>
+        <p className="mt-1 text-sm text-zinc-400">
+          Signature valid but no third-party time anchor (TSA unreachable at issuance, or a
+          pre-timestamping receipt).
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4 rounded-md border border-red-800 bg-red-950/30 p-4">
+      <p className="flex items-center gap-2 font-semibold text-red-300">
+        <span className="text-red-400">✗</span> Timestamp — invalid
+      </p>
+      <p className="mt-1 text-sm text-zinc-400">{ts.reason}</p>
     </div>
   );
 }

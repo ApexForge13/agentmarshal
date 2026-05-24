@@ -17,6 +17,7 @@ import { recordEvaluation } from '@/lib/authzen/audit';
 import { buildReceipt } from '@/lib/compliance/receipt/builder';
 import { buildInternalAuditRecord } from '@/lib/compliance/internal-audit/builder';
 import { FileKeyProvider } from '@/lib/compliance/keys/file-provider';
+import { createFreeTsaTimestamper } from '@/lib/compliance/timestamp/tsa-client';
 import {
   emissionTypeFor,
   isKnownAgentType,
@@ -37,6 +38,9 @@ import type { AgentType } from '@/lib/compliance/internal-audit/types';
 export const runtime = 'nodejs';
 
 const keyProvider = new FileKeyProvider();
+// RFC 3161 external timestamper. Best-effort: a 2s timeout + graceful degradation
+// mean a FreeTSA outage yields a signed-but-not-timestamped receipt, never a 500.
+const timestamper = createFreeTsaTimestamper();
 
 export async function POST(request: Request): Promise<NextResponse> {
   let body: unknown;
@@ -123,6 +127,7 @@ async function emitSignedRecord(input: EmissionInput): Promise<EmittedRecord> {
       previousReceiptHash: null,
       issuedAt: input.issuedAt,
       signers: [{ handle, role: 'agentmarshal' }],
+      timestamper,
     });
     return { record_type: 'compliance_receipt', body: receipt as unknown as Record<string, unknown> };
   }
@@ -158,6 +163,7 @@ async function emitSignedRecord(input: EmissionInput): Promise<EmittedRecord> {
     previousAuditHash: null,
     issuedAt: input.issuedAt,
     signers: [{ handle, role: 'agentmarshal' }],
+    timestamper,
   });
   return { record_type: 'internal_audit', body: internalAudit as unknown as Record<string, unknown> };
 }

@@ -241,10 +241,18 @@
     },
 
     "signatures": {
-      "description": "One or more signatures over the canonicalized body (the record MINUS audit_hash and signatures). Same shape as Compliance Receipts; v0.1 uses Ed25519 with the same KeyRegistry as receipts.",
+      "description": "One or more signatures over the canonicalized body (the record MINUS audit_hash, signatures, and timestamp_token). Same shape as Compliance Receipts; v0.1 uses Ed25519 with the same KeyRegistry as receipts.",
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/AuditRecordSignature" }
+    },
+
+    "timestamp_token": {
+      "description": "OPTIONAL RFC 3161 external timestamp anchor over audit_hash. Same shape and semantics as Compliance Receipts' timestamp_token: attached after signing, excluded from audit_hash and the signed body, stripped before verification. null or absent ⇒ not externally timestamped.",
+      "oneOf": [
+        { "$ref": "#/$defs/TimestampToken" },
+        { "type": "null" }
+      ]
     }
   },
 
@@ -344,6 +352,30 @@
           "description": "Role of the signing party. 'agentmarshal' is the substrate; 'operator' is the agent's principal; 'vendor' is a downstream system.",
           "type": "string",
           "enum": ["agentmarshal", "operator", "vendor"]
+        }
+      }
+    },
+
+    "TimestampToken": {
+      "description": "An RFC 3161 external timestamp token anchoring audit_hash to a third-party Time Stamping Authority. Same shape as Compliance Receipts' TimestampToken $def. v0.2 uses FreeTSA.",
+      "type": "object",
+      "required": ["tsa", "token_b64", "issued_at"],
+      "additionalProperties": false,
+      "properties": {
+        "tsa": {
+          "description": "Human-readable Time Stamping Authority identifier (e.g., 'FreeTSA').",
+          "type": "string",
+          "minLength": 1
+        },
+        "token_b64": {
+          "description": "base64 of the DER-encoded RFC 3161 TimeStampToken (a CMS SignedData ContentInfo).",
+          "type": "string",
+          "minLength": 1
+        },
+        "issued_at": {
+          "description": "ISO 8601 UTC genTime extracted from the token's TSTInfo at issuance. Informational; verifiers re-derive the authoritative time from token_b64.",
+          "type": "string",
+          "format": "date-time"
         }
       }
     }

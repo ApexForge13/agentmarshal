@@ -13,6 +13,8 @@
 
 import { canonicalize } from '@/lib/compliance/receipt/canonical';
 import { verify as verifyEd25519 } from '@/lib/compliance/receipt/verify';
+import { verifyTimestampToken } from '@/lib/compliance/timestamp/verify-timestamp';
+import type { TimestampResult } from '@/lib/compliance/timestamp/types';
 import { loadPublicKey } from './load-public-key';
 
 export type RecordTypeDiscriminant = 'compliance_receipt' | 'internal_audit' | 'unknown';
@@ -30,6 +32,11 @@ export interface VerifyResult {
   record_type: RecordTypeDiscriminant;
   reason: string;
   details?: VerifyDetails;
+  // RFC 3161 external timestamp verdict, reported SEPARATELY from signature
+  // validity: a receipt can be { verified: true, timestamp: unavailable } (signed
+  // but no third-party time anchor) or { verified: false, timestamp: timestamped }
+  // (a real time anchor over a since-tampered body).
+  timestamp: TimestampResult;
 }
 
 type Obj = Record<string, unknown>;
@@ -54,6 +61,7 @@ function discriminate(obj: Obj): RecordTypeDiscriminant {
 function buildSignedBody(recordType: RecordTypeDiscriminant, obj: Obj): Obj {
   const body: Obj = { ...obj };
   delete body.signatures;
+  delete body.timestamp_token; // attached after signing (like signatures); never signed
   if (recordType === 'compliance_receipt') {
     delete body.receipt_hash;
     delete body.record_type; // synthetic wrapper field, never in receipt's signed bytes
@@ -61,6 +69,26 @@ function buildSignedBody(recordType: RecordTypeDiscriminant, obj: Obj): Obj {
     delete body.audit_hash; // record_type is intrinsic to the signed body — keep it
   }
   return body;
+}
+
+/** Verdict for the envelope's external timestamp, independent of the signature. */
+function computeTimestampResult(recordType: RecordTypeDiscriminant, obj: Obj): TimestampResult {
+  const tt = obj.timestamp_token;
+  if (tt === null || tt === undefined) {
+    return { status: 'unavailable', reason: 'no external timestamp anchor on this receipt' };
+  }
+  if (!isObject(tt) || typeof tt.token_b64 !== 'string') {
+    return { status: 'invalid', reason: 'timestamp_token is present but malformed' };
+  }
+  const hashHex =
+    recordType === 'internal_audit'
+      ? typeof obj.audit_hash === 'string'
+        ? obj.audit_hash
+        : ''
+      : typeof obj.receipt_hash === 'string'
+        ? obj.receipt_hash
+        : '';
+  return verifyTimestampToken({ tokenB64: tt.token_b64, expectedHashHex: hashHex });
 }
 
 function asStringArray(v: unknown): string[] {
@@ -102,7 +130,12 @@ function extractDetails(recordType: RecordTypeDiscriminant, obj: Obj): VerifyDet
  */
 export async function verifyReceipt(input: unknown): Promise<VerifyResult> {
   if (!isObject(input)) {
-    return { verified: false, record_type: 'unknown', reason: 'receipt must be a JSON object' };
+    return {
+      verified: false,
+      record_type: 'unknown',
+      reason: 'receipt must be a JSON object',
+      timestamp: { status: 'unavailable', reason: 'not a recognized receipt' },
+    };
   }
 
   const recordType = discriminate(input);
@@ -111,16 +144,21 @@ export async function verifyReceipt(input: unknown): Promise<VerifyResult> {
       verified: false,
       record_type: 'unknown',
       reason: 'unknown record_type: not a Compliance Receipt or Internal Audit envelope',
+      timestamp: { status: 'unavailable', reason: 'not a recognized receipt' },
     };
   }
 
+  // Timestamp validity is independent of the signature — compute it once and
+  // report it on every path for a recognized record.
+  const timestamp = computeTimestampResult(recordType, input);
+
   const signatures = input.signatures;
   if (!Array.isArray(signatures) || signatures.length === 0) {
-    return { verified: false, record_type: recordType, reason: 'missing signature field' };
+    return { verified: false, record_type: recordType, reason: 'missing signature field', timestamp };
   }
   const sig = signatures[0];
   if (!isObject(sig) || typeof sig.signature !== 'string') {
-    return { verified: false, record_type: recordType, reason: 'missing signature field' };
+    return { verified: false, record_type: recordType, reason: 'missing signature field', timestamp };
   }
 
   let canonical: Buffer;
@@ -131,6 +169,7 @@ export async function verifyReceipt(input: unknown): Promise<VerifyResult> {
       verified: false,
       record_type: recordType,
       reason: 'receipt body is not canonicalizable (non-JSON-serializable content)',
+      timestamp,
     };
   }
 
@@ -148,7 +187,7 @@ export async function verifyReceipt(input: unknown): Promise<VerifyResult> {
       typeof fp === 'string' && fp !== info.public_key_fingerprint
         ? `signature mismatch: signed by a different key (fingerprint ${fp} ≠ published ${info.public_key_fingerprint})`
         : 'signature mismatch';
-    return { verified: false, record_type: recordType, reason };
+    return { verified: false, record_type: recordType, reason, timestamp };
   }
 
   return {
@@ -156,5 +195,6 @@ export async function verifyReceipt(input: unknown): Promise<VerifyResult> {
     record_type: recordType,
     reason: 'signature valid: receipt is authentic and unmodified',
     details: extractDetails(recordType, input),
+    timestamp,
   };
 }

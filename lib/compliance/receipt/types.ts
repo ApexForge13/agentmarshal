@@ -3,6 +3,7 @@
 
 import type { PredicateEvaluation } from '@/types/authzen';
 import type { CompositePredicateEvaluation } from '@/lib/authzen/composite-dispatch';
+import type { TimestampToken } from '@/lib/compliance/timestamp/types';
 
 export type SignerRole = 'agentmarshal' | 'operator' | 'vendor';
 
@@ -55,4 +56,9 @@ export interface ComplianceReceipt {
 
   regulatory_state: RegulatoryStateAnchor;
   signatures: ReceiptSignature[];
+
+  // RFC 3161 external timestamp anchor (Bubble 11). Attached AFTER signing and
+  // receipt_hash computation; NOT part of the signed body or the receipt_hash.
+  // null/absent ⇒ not externally timestamped (TSA unreachable, or pre-Bubble-11).
+  timestamp_token?: TimestampToken | null;
 }

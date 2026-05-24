@@ -27,6 +27,9 @@
 # published seed. Production private keys are also *.pem but live under
 # data/keys/ (gitignored above).
 !tests/vectors/keys/*.pem
+# Exception: pinned PUBLIC TSA certs (FreeTSA root + leaf) committed for audit
+# provenance of the RFC 3161 trust anchor. No secrets — published at freetsa.org.
+!lib/compliance/timestamp/certs/*.pem
 
 # debug
 npm-debug.log*

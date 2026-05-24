@@ -12,6 +12,7 @@ import type {
   RegulatoryStateAnchor,
   SignerRole,
 } from '@/lib/compliance/receipt/types';
+import type { TimestampToken } from '@/lib/compliance/timestamp/types';
 
 export type AuditRecordSignature = ReceiptSignature;
 export type { RegulatoryStateAnchor, SignerRole };
@@ -82,4 +83,9 @@ export interface InternalAuditRecord {
 
   regulatory_state: RegulatoryStateAnchor;
   signatures: AuditRecordSignature[];
+
+  // RFC 3161 external timestamp anchor (Bubble 11), over audit_hash. Attached
+  // AFTER signing + audit_hash computation; NOT part of the signed body or hash.
+  // null/absent ⇒ not externally timestamped. Mirrors ComplianceReceipt.
+  timestamp_token?: TimestampToken | null;
 }

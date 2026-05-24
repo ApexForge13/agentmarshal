@@ -28,6 +28,7 @@ import type {
 } from './types';
 import type { EvaluationResult } from '@/types/authzen';
 import type { SigningHandle } from '@/lib/compliance/keys/provider';
+import type { Timestamper } from '@/lib/compliance/timestamp/types';
 
 export const PENDING_REGULATORY_STATE: RegulatoryStateAnchor = {
   hash: null,
@@ -62,6 +63,10 @@ export interface BuildReceiptInput {
   issuedAt?: Date;
   receiptId?: string;
   signers: Array<{ handle: SigningHandle; role: SignerRole; signedAt?: Date }>;
+  // Optional RFC 3161 timestamper. When provided, the finished receipt_hash is
+  // submitted to the TSA and the token attached as timestamp_token. Omit to skip
+  // external timestamping entirely (the default — no network, no field added).
+  timestamper?: Timestamper;
 }
 
 export function computeReceiptHash(
@@ -131,6 +136,15 @@ export async function buildReceipt(input: BuildReceiptInput): Promise<Compliance
     throw new Error(
       `buildReceipt: produced receipt failed schema validation: ${validation.errors.join('; ')}`,
     );
+  }
+
+  // External timestamp anchor (best-effort, post-signing). The timestamper never
+  // throws — a TSA outage yields null and the receipt ships signed-but-not-stamped.
+  // timestamp_token is excluded from receipt_hash (added here, after it is computed)
+  // and from the signed body (verifiers strip it before recomputing signed bytes).
+  if (input.timestamper) {
+    const timestamp_token = await input.timestamper.timestamp(receipt_hash);
+    return { ...final, timestamp_token };
   }
 
   return final;

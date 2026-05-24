@@ -11,6 +11,7 @@ import { buildReceipt } from '@/lib/compliance/receipt/builder';
 import { buildInternalAuditRecord } from '@/lib/compliance/internal-audit/builder';
 import { FileKeyProvider } from '@/lib/compliance/keys/file-provider';
 import type { EvaluationResult } from '@/types/authzen';
+import type { Timestamper } from '@/lib/compliance/timestamp/types';
 
 const FIXED = {
   issuedAt: new Date('2026-05-23T18:00:00.000Z'),
@@ -98,7 +99,10 @@ export interface VerifyExamples {
   tampered_compliance: Record<string, unknown>;
 }
 
-export async function buildExamples(): Promise<VerifyExamples> {
+// `timestamper` is injected by the generator so the committed examples carry real
+// FreeTSA timestamp tokens deterministically (replayed from captured fixtures) —
+// CI never hits the network. Omit it and the examples build without timestamps.
+export async function buildExamples(timestamper?: Timestamper): Promise<VerifyExamples> {
   const handle = await new FileKeyProvider().getActiveSigningHandle();
 
   const receipt = await buildReceipt({
@@ -114,6 +118,7 @@ export async function buildExamples(): Promise<VerifyExamples> {
     issuedAt: FIXED.issuedAt,
     receiptId: FIXED.receiptId,
     signers: [{ handle, role: 'agentmarshal', signedAt: FIXED.signedAt }],
+    timestamper,
   });
 
   // Mirror the API wrapper: the route attaches record_type at response level.
@@ -132,6 +137,7 @@ export async function buildExamples(): Promise<VerifyExamples> {
     issuedAt: FIXED.issuedAt,
     recordId: FIXED.auditRecordId,
     signers: [{ handle, role: 'agentmarshal', signedAt: FIXED.signedAt }],
+    timestamper,
   })) as unknown as Record<string, unknown>;
 
   // Tamper: flip the signed decision from deny → permit AFTER signing. The

@@ -30,6 +30,7 @@ import type {
 import type { RegulatoryStateAnchor } from '@/lib/compliance/receipt/types';
 import type { EvaluationResult } from '@/types/authzen';
 import type { SigningHandle } from '@/lib/compliance/keys/provider';
+import type { Timestamper } from '@/lib/compliance/timestamp/types';
 
 export { PENDING_REGULATORY_STATE, resolveCodeVersion };
 
@@ -47,6 +48,8 @@ export interface BuildInternalAuditRecordInput {
   issuedAt?: Date;
   recordId?: string;
   signers: Array<{ handle: SigningHandle; role: SignerRole; signedAt?: Date }>;
+  // Optional RFC 3161 timestamper over audit_hash. See buildReceipt for semantics.
+  timestamper?: Timestamper;
 }
 
 export function computeAuditHash(
@@ -125,6 +128,13 @@ export async function buildInternalAuditRecord(
     throw new Error(
       `buildInternalAuditRecord: produced record failed schema validation: ${validation.errors.join('; ')}`,
     );
+  }
+
+  // External timestamp anchor over audit_hash (best-effort, post-signing). See
+  // buildReceipt — same exclusion from audit_hash and signed body.
+  if (input.timestamper) {
+    const timestamp_token = await input.timestamper.timestamp(audit_hash);
+    return { ...final, timestamp_token };
   }
 
   return final;

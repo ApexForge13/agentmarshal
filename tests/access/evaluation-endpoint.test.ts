@@ -48,11 +48,12 @@ function bodyForVerification(record: Record<string, unknown>): Record<string, un
       record_type: _rt,
       receipt_hash: _rh,
       signatures: _sigs,
+      timestamp_token: _tt, // attached post-signing (Bubble 11); never in signed bytes
       ...body
     } = record;
     return body;
   }
-  const { audit_hash: _ah, signatures: _sigs, ...body } = record;
+  const { audit_hash: _ah, signatures: _sigs, timestamp_token: _tt, ...body } = record;
   return body;
 }
 

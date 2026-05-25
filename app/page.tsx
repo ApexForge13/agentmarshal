@@ -1,31 +1,19 @@
-// Operator dashboard entry. Server Component loads the YAML once at request
-// time and hands both the raw text (for the Policy tab) and parsed fleet (for
-// the sidebar) to the Client Component that owns interactive state.
+// Trading-desk dashboard entry (Bubble 14) — replaces the v0.1 mike-cortez
+// Mission Control at demo.agentmarshal.dev.
+//
+// Server Component: resolves the OFAC SDN snapshot (regulatory provider) and the
+// demo-sequence scenario requests at request time, hands both to the client
+// TradingDesk that owns the activity feed + demo runner.
 
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
-import { Dashboard } from '@/components/Dashboard';
-import { loadPolicy } from '@/lib/policy-engine';
+import { TradingDesk } from '@/components/trading-desk/TradingDesk';
+import { getOfacSnapshot } from '@/lib/regulatory/ofac';
+import { loadDemoScenarios } from '@/lib/dashboard/demo-scenarios';
 
 export const dynamic = 'force-dynamic';
 
 export default function Home() {
-  const policyPath = path.resolve(process.cwd(), 'configs', 'policy.yaml');
-  const policyYaml = readFileSync(policyPath, 'utf8');
-  const policy = loadPolicy(policyPath);
-  const fleet = policy.agents ?? [];
-  const ruleCount = policy.policy_rules?.length ?? 0;
-  const fleetId = policy.fleet_id ?? 'unknown';
-  const operator = policy.operator ?? 'unknown';
+  const snapshot = getOfacSnapshot();
+  const demoScenarios = loadDemoScenarios();
 
-  return (
-    <Dashboard
-      policyYaml={policyYaml}
-      fleet={fleet}
-      ruleCount={ruleCount}
-      fleetId={fleetId}
-      operator={operator}
-    />
-  );
+  return <TradingDesk snapshot={snapshot} demoScenarios={demoScenarios} />;
 }

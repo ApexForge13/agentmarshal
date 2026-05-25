@@ -62,7 +62,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const evaluatedAt = new Date();
     const authzenRequest = body as AuthZenRequest;
-    const contract = await loadContractForAgent(authzenRequest.subject.id);
+    const contract = await loadContractForAgent(
+      authzenRequest.subject.id,
+      authzenRequest.subject.type,
+    );
     const result = await evaluateRequest(authzenRequest, contract, { now: evaluatedAt });
     const response = toAuthZenResponse(result);
 

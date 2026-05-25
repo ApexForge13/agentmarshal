@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgentMarshal — Mission Control",
+  title: "AgentMarshal — Trading Desk",
   description:
     "Compliance and governance layer for autonomous AI agent fleets.",
 };

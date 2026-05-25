@@ -108,4 +108,38 @@ describe('Scope Contract loader (Bubble 7)', () => {
       spy.mockRestore();
     });
   });
+
+  // Bubble 14: strictly-additive subject.type fallback. subject.id (instance-id
+  // keys) resolves first; subject.type (type-name keys: TradingAgent, …) is the
+  // fallback. This is what makes Bubble 13's type-name keys resolve through the
+  // production evaluation path the dashboard fires against.
+  describe('loadContractForAgent — subject.type fallback', () => {
+    it('instance-id hit is byte-identical with and without a subject.type argument', async () => {
+      // voice-001 is an instance-id key → voice_v1. The fallback path must never
+      // be consulted; the second call returns the same cached contract object.
+      const single = await loadContractForAgent('voice-001');
+      const withType = await loadContractForAgent('voice-001', 'TradingAgent');
+      expect(single.contract_id).toBe('voice_v1');
+      expect(withType).toBe(single);
+    });
+
+    it('instance-id miss + subject.type hit fires the fallback (TradingAgent → trading_v1)', async () => {
+      // trading-agent-001 is NOT a map key; TradingAgent IS. This is the exact
+      // path the dashboard "Run demo sequence" drives through /api/access/v1/evaluation.
+      const contract = await loadContractForAgent('trading-agent-001', 'TradingAgent');
+      expect(contract.contract_id).toBe('trading_v1');
+    });
+
+    it('instance-id miss + subject.type miss falls back to STUB_PERMISSIVE_ALLOW (unchanged)', async () => {
+      const contract = await loadContractForAgent('no-such-instance-zzz', 'NoSuchTypeZzz');
+      expect(contract.contract_id).toBe('stub-permissive-v0.2-day-3');
+    });
+
+    it('instance-id and subject.type resolving different contracts → subject.id wins', async () => {
+      // voice-001 → voice_v1 (id) vs TradingAgent → trading_v1 (type): the more
+      // specific instance-id key takes priority over the type-name key.
+      const contract = await loadContractForAgent('voice-001', 'TradingAgent');
+      expect(contract.contract_id).toBe('voice_v1');
+    });
+  });
 });

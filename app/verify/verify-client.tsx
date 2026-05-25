@@ -4,10 +4,11 @@
 // fetch to /api/verify/receipt. Server component (page.tsx) supplies the
 // published public key and example receipts as props.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PublicKeyInfo } from '@/lib/verify/load-public-key';
 import type { VerifyResult } from '@/lib/verify/verify-receipt';
 import type { TimestampResult } from '@/lib/compliance/timestamp/types';
+import { VERIFY_HANDOFF_KEY } from '@/lib/verify/handoff';
 
 interface Examples {
   valid_compliance: unknown;
@@ -28,6 +29,23 @@ export function VerifyClient({ publicKey, examples }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Receipt handoff from the trading-desk receipt viewer ("Verify at /verify").
+  // The dashboard stashes a receipt under VERIFY_HANDOFF_KEY and opens this page
+  // in a new tab; we pre-load it once and clear the key so a refresh starts clean.
+  // (result/error are already null on mount, so only `text` needs seeding.)
+  useEffect(() => {
+    let stashed: string | null = null;
+    try {
+      stashed = window.localStorage.getItem(VERIFY_HANDOFF_KEY);
+      if (stashed) window.localStorage.removeItem(VERIFY_HANDOFF_KEY);
+    } catch {
+      return; // storage unavailable; nothing to pre-load
+    }
+    if (!stashed) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client-only handoff; must run post-mount (not lazy init) to avoid an SSR hydration mismatch
+    setText(stashed);
+  }, []);
 
   function loadExample(which: keyof Examples) {
     setText(pretty(examples[which]));

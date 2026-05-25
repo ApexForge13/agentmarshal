@@ -4,8 +4,9 @@
 //   data/contracts/<contract_id>.json          — one file per contract
 //   data/agent-contract-map.json                — { agent_id: contract_id }
 // Behavior:
-//   1. Resolve contract_id for agent via the agent-contract map.
-//   2. If no mapping, fall back to STUB_PERMISSIVE_ALLOW + warn.
+//   1. Resolve contract_id via the agent-contract map: subject.id first
+//      (instance-id keys), then subject.type as a fallback (type-name keys).
+//   2. If neither resolves, fall back to STUB_PERMISSIVE_ALLOW + warn.
 //   3. Load from disk on cache miss; validate against scope-contract.schema.json.
 //   4. Cache parsed contract in-memory keyed by contract_id (no TTL; restart to reload).
 //   5. On load/validation error, fall back to STUB_PERMISSIVE_ALLOW + warn.
@@ -100,11 +101,24 @@ export async function loadContractFromDisk(contractId: string): Promise<ScopeCon
   return parsed as ScopeContract;
 }
 
-export async function loadContractForAgent(agentId: string): Promise<ScopeContract> {
+export async function loadContractForAgent(
+  agentId: string,
+  subjectType?: string,
+): Promise<ScopeContract> {
   const override = contractOverrides.get(agentId);
   if (override) return override;
 
-  const contractId = await resolveContractIdForAgent(agentId);
+  // Resolve subject.id against the agent-contract map first (instance-id keys:
+  // voice-001, outreach-001, …). On a miss, fall back to subject.type (type-name
+  // keys: TradingAgent, ResearchAgent, …) so a fleet of identically-governed
+  // agents can be addressed by type without enumerating every instance id.
+  // subject.id wins when both resolve — the instance is more specific than the
+  // type. Strictly additive: a single-argument call (subjectType undefined)
+  // behaves exactly as before.
+  let contractId = await resolveContractIdForAgent(agentId);
+  if (contractId === null && subjectType !== undefined && subjectType !== agentId) {
+    contractId = await resolveContractIdForAgent(subjectType);
+  }
   if (contractId === null) {
     return STUB_PERMISSIVE_ALLOW;
   }

@@ -1,75 +1,69 @@
-// Right column — regulatory state panel (Phase 3).
-// Renders an OFAC SDN snapshot. Source-agnostic: it displays whatever the
-// RegulatoryStateProvider hands it, so the Bright Data-wired feed is a provider
-// swap (server side), not a panel change.
+// Right-rail default mode (Phase 5) — regulatory state. Source-agnostic: renders
+// whatever the RegulatoryStateProvider hands it, so the Bright Data live feed is
+// a provider swap (server side), not a panel change.
 
 import type { OfacSnapshot } from '@/lib/regulatory/ofac';
 
-const LABEL = 'text-[10px] uppercase tracking-wider text-zinc-500';
+const RAIL_TITLE: React.CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: 11,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  color: 'var(--text)',
+};
+
+function Kv({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="kv">
+      <span className="k">{k}</span>
+      <span className="v">{v}</span>
+    </div>
+  );
+}
 
 export function RegulatoryPanel({ snapshot }: { snapshot: OfacSnapshot }) {
   const live = snapshot.status === 'live';
   return (
-    <aside className="flex w-full flex-col border-l border-zinc-800 bg-zinc-950">
-      <div className="border-b border-zinc-800 px-4 py-3">
-        <div className={LABEL}>Regulatory state</div>
-        <div className="mt-1 text-sm font-medium text-zinc-100">Sanctions screening</div>
+    <div>
+      <div className="rail-header">
+        <span style={RAIL_TITLE}>Sanctions screening</span>
+        {/* Default mode — no close needed. */}
+        <span className="x" style={{ cursor: 'default' }}>—</span>
       </div>
 
-      <div className="flex flex-col gap-4 px-4 py-4">
-        <div className="flex items-center justify-between">
-          <span className={LABEL}>Status</span>
-          <span
-            className={
-              live
-                ? 'inline-flex items-center gap-1.5 border border-emerald-800 bg-emerald-950/40 px-2 py-0.5 text-[11px] font-medium text-emerald-300'
-                : 'inline-flex items-center gap-1.5 border border-amber-800 bg-amber-950/40 px-2 py-0.5 text-[11px] font-medium text-amber-300'
-            }
-          >
-            <span
-              className={`inline-block size-1.5 rounded-full ${live ? 'bg-emerald-400' : 'bg-amber-400'}`}
-            />
+      <div className="rail-section">
+        <div className="title">Status</div>
+        <div style={{ marginBottom: 10 }}>
+          <span className={live ? 'badge healthy' : 'badge warning'}>
             {live ? 'Live' : 'Awaiting Bright Data feed'}
           </span>
         </div>
+        <Kv k="Source" v={snapshot.source} />
+        <Kv k="Last updated" v={snapshot.last_updated} />
+        <Kv k="Entry count" v={snapshot.entry_count} />
+        <Kv k="Fingerprint" v={`${snapshot.fingerprint.hash.slice(0, 12)}…`} />
+      </div>
 
-        <Field label="Source" value={snapshot.source} />
-        <Field label="Last updated" value={snapshot.last_updated} mono />
-        <Field label="Entry count" value={String(snapshot.entry_count)} mono />
-        <Field
-          label="Fingerprint (sha256)"
-          value={`${snapshot.fingerprint.hash.slice(0, 12)}…`}
-          mono
-        />
+      <div className="rail-section">
+        <div className="title">SDN entries</div>
+        {snapshot.list.map((entry) => (
+          <div
+            key={entry}
+            style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)', padding: '3px 0' }}
+          >
+            {entry}
+          </div>
+        ))}
+      </div>
 
-        <div>
-          <div className={`${LABEL} mb-1.5`}>SDN entries</div>
-          <ul className="divide-y divide-zinc-800 border border-zinc-800">
-            {snapshot.list.map((entry) => (
-              <li key={entry} className="px-2.5 py-1.5 font-mono text-[11px] text-zinc-300">
-                {entry}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="text-[11px] leading-relaxed text-zinc-500">
-          Each trading decision records a fingerprint of the SDN snapshot it was
-          screened against — a reader can confirm <span className="text-zinc-400">which</span>{' '}
-          list a decision used without embedding the list in every receipt.
+      <div className="rail-section">
+        <div className="title">About this snapshot</div>
+        <p style={{ fontSize: 11, lineHeight: 1.65, color: 'var(--text-3)', margin: 0 }}>
+          Each trading decision records a fingerprint of the SDN snapshot it was screened against —
+          a reader can confirm <span style={{ color: 'var(--text-2)' }}>which</span> list a decision
+          used without embedding the list in every receipt.
         </p>
       </div>
-    </aside>
-  );
-}
-
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className={LABEL}>{label}</span>
-      <span className={`text-right text-zinc-200 ${mono ? 'font-mono text-xs' : 'text-sm'}`}>
-        {value}
-      </span>
     </div>
   );
 }

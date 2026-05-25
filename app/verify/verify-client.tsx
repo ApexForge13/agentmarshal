@@ -3,6 +3,10 @@
 // Interactive verify form. Plain React state (no client-side state library) +
 // fetch to /api/verify/receipt. Server component (page.tsx) supplies the
 // published public key and example receipts as props.
+//
+// Bubble 15: Echo OS chrome. Behavior is byte-identical to Bubble 14 — same
+// handoff effect, paste/parse, /api/verify/receipt fetch, result + timestamp
+// rendering, example loaders, key copy. Only the markup/classes changed.
 
 import { useEffect, useState } from 'react';
 import type { PublicKeyInfo } from '@/lib/verify/load-public-key';
@@ -22,6 +26,15 @@ interface Props {
 }
 
 const pretty = (v: unknown) => JSON.stringify(v, null, 2);
+
+const MONO: React.CSSProperties = { fontFamily: 'var(--mono)' };
+const SECTION_LABEL: React.CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: 10,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  color: 'var(--text-3)',
+};
 
 export function VerifyClient({ publicKey, examples }: Props) {
   const [text, setText] = useState('');
@@ -94,49 +107,47 @@ export function VerifyClient({ publicKey, examples }: Props) {
     }
   }
 
-  const btn =
-    'rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50';
-
   return (
-    <div className="flex flex-col gap-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Paste a Compliance Receipt or Internal Audit envelope (JSON)…"
         spellCheck={false}
-        className="h-64 w-full resize-y rounded-lg border border-border bg-zinc-900 p-4 font-mono text-xs text-zinc-100 outline-none focus:ring-2 focus:ring-ring"
+        className="textarea mono"
+        style={{ minHeight: 240 }}
       />
 
-      <div className="flex flex-wrap gap-3">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <button
+          type="button"
+          className="btn primary"
           onClick={verify}
           disabled={busy || text.trim().length === 0}
-          className={`${btn} bg-emerald-600 text-white hover:bg-emerald-500`}
         >
           {busy ? 'Verifying…' : 'Verify'}
         </button>
-        <button
-          onClick={() => loadExample('valid_compliance')}
-          className={`${btn} bg-zinc-700 text-zinc-100 hover:bg-zinc-600`}
-        >
+        <button type="button" className="btn" onClick={() => loadExample('valid_compliance')}>
           Load valid example
         </button>
-        <button
-          onClick={() => loadExample('tampered_compliance')}
-          className={`${btn} bg-zinc-700 text-zinc-100 hover:bg-zinc-600`}
-        >
+        <button type="button" className="btn" onClick={() => loadExample('tampered_compliance')}>
           Load tampered example
         </button>
-        <button
-          onClick={() => loadExample('valid_internal_audit')}
-          className={`${btn} bg-zinc-800 text-zinc-300 hover:bg-zinc-700`}
-        >
+        <button type="button" className="btn ghost" onClick={() => loadExample('valid_internal_audit')}>
           Load internal-audit example
         </button>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-800 bg-red-950/50 p-4 text-sm text-red-300">
+        <div
+          style={{
+            border: '1px solid rgba(179,60,60,0.4)',
+            background: 'rgba(179,60,60,0.08)',
+            color: 'var(--danger)',
+            padding: '10px 14px',
+            fontSize: 12,
+          }}
+        >
           {error}
         </div>
       )}
@@ -148,101 +159,87 @@ export function VerifyClient({ publicKey, examples }: Props) {
   );
 }
 
+function Kv({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="kv">
+      <span className="k">{k}</span>
+      <span className="v" style={{ wordBreak: 'break-all' }}>
+        {v}
+      </span>
+    </div>
+  );
+}
+
 function ResultPanel({ result }: { result: VerifyResult }) {
   const ok = result.verified;
   return (
-    <div
-      className={`rounded-lg border p-5 ${
-        ok ? 'border-emerald-700 bg-emerald-950/40' : 'border-red-800 bg-red-950/40'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <span className={`text-2xl ${ok ? 'text-emerald-400' : 'text-red-400'}`}>
-          {ok ? '✓' : '✗'}
+    <div style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <div className="panel-header">
+        <span className="panel-title">Verification result</span>
+        <span className={ok ? 'badge healthy' : 'badge danger'} style={{ marginLeft: 'auto' }}>
+          {ok ? 'Signature valid' : 'Signature invalid'}
         </span>
-        <div>
-          <p className={`font-semibold ${ok ? 'text-emerald-300' : 'text-red-300'}`}>
-            {ok ? 'Verified — signature valid' : 'Invalid — verification failed'}
-          </p>
-          <p className="text-sm text-zinc-400">{result.reason}</p>
-        </div>
       </div>
-
-      <dl className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-        <Field label="record_type" value={result.record_type} mono />
+      <div style={{ padding: '14px 18px' }}>
+        <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-2)', lineHeight: 1.6 }}>
+          {result.reason}
+        </p>
+        <Kv k="record_type" v={result.record_type} />
         {result.details && (
           <>
-            <Field label="agent_id" value={result.details.agent_id} mono />
-            <Field label="decision" value={result.details.decision} mono />
-            <Field label="issued_at" value={result.details.issued_at} mono />
-            <Field
-              label="previous_receipt_hash"
-              value={result.details.previous_receipt_hash ?? 'null (chain genesis)'}
-              mono
+            <Kv k="agent_id" v={result.details.agent_id} />
+            <Kv k="decision" v={result.details.decision} />
+            <Kv k="issued_at" v={result.details.issued_at} />
+            <Kv
+              k="previous_receipt_hash"
+              v={result.details.previous_receipt_hash ?? 'null (chain genesis)'}
             />
-            <Field
-              label="composites_fired"
-              value={
+            <Kv
+              k="composites_fired"
+              v={
                 result.details.composites_fired.length > 0
                   ? result.details.composites_fired.join(', ')
                   : '(none)'
               }
-              mono
             />
           </>
         )}
-      </dl>
-
-      <TimestampBlock ts={result.timestamp} />
+        <TimestampBlock ts={result.timestamp} />
+      </div>
     </div>
   );
 }
 
 // RFC 3161 external timestamp verdict, reported separately from the signature.
-// Developer-facing copy for now; regulator-readable polish lands in a later bubble.
 function TimestampBlock({ ts }: { ts: TimestampResult }) {
-  if (ts.status === 'timestamped') {
-    return (
-      <div className="mt-4 rounded-md border border-emerald-700 bg-emerald-950/30 p-4">
-        <p className="flex items-center gap-2 font-semibold text-emerald-300">
-          <span className="text-emerald-400">✓</span> Timestamp — externally anchored
-        </p>
-        <p className="mt-1 text-sm text-zinc-400">
-          RFC 3161 time anchor by <span className="font-mono">{ts.tsa}</span> at{' '}
-          <span className="font-mono">{ts.timestamp_at}</span>. Third-party proof of WHEN this
-          receipt existed, independent of AgentMarshal&apos;s clock or records.
-        </p>
-      </div>
-    );
-  }
-  if (ts.status === 'unavailable') {
-    return (
-      <div className="mt-4 rounded-md border border-amber-700 bg-amber-950/30 p-4">
-        <p className="flex items-center gap-2 font-semibold text-amber-300">
-          <span className="text-amber-400">⚠</span> Timestamp — not externally timestamped
-        </p>
-        <p className="mt-1 text-sm text-zinc-400">
-          Signature valid but no third-party time anchor (TSA unreachable at issuance, or a
-          pre-timestamping receipt).
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className="mt-4 rounded-md border border-red-800 bg-red-950/30 p-4">
-      <p className="flex items-center gap-2 font-semibold text-red-300">
-        <span className="text-red-400">✗</span> Timestamp — invalid
-      </p>
-      <p className="mt-1 text-sm text-zinc-400">{ts.reason}</p>
-    </div>
-  );
-}
+  let badgeCls = 'badge neutral';
+  let label = 'Unavailable';
+  let detail: React.ReactNode =
+    'Signature valid but no third-party time anchor (TSA unreachable at issuance, or a pre-timestamping receipt).';
 
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  if (ts.status === 'timestamped') {
+    badgeCls = 'badge healthy';
+    label = 'TSA verified';
+    detail = (
+      <>
+        RFC 3161 time anchor by <span style={MONO}>{ts.tsa}</span> at{' '}
+        <span style={MONO}>{ts.timestamp_at}</span>. Third-party proof of WHEN this receipt existed,
+        independent of AgentMarshal&apos;s clock or records.
+      </>
+    );
+  } else if (ts.status === 'invalid') {
+    badgeCls = 'badge danger';
+    label = 'Invalid';
+    detail = ts.reason;
+  }
+
   return (
-    <div className="flex flex-col">
-      <dt className="text-xs uppercase tracking-wide text-zinc-500">{label}</dt>
-      <dd className={`break-all text-zinc-200 ${mono ? 'font-mono text-xs' : ''}`}>{value}</dd>
+    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={SECTION_LABEL}>Timestamp</span>
+        <span className={badgeCls}>{label}</span>
+      </div>
+      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', lineHeight: 1.6 }}>{detail}</p>
     </div>
   );
 }
@@ -258,27 +255,27 @@ function PublicKeyPanel({
 }) {
   const jwkText = JSON.stringify(publicKey.jwk, null, 2);
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold text-zinc-200">
-        AgentMarshal published public key (Ed25519)
-      </h2>
-      <p className="mt-1 text-xs text-zinc-500">
-        key_id <span className="font-mono">{publicKey.key_id}</span> · fingerprint{' '}
-        <span className="font-mono">{publicKey.public_key_fingerprint}</span>
-      </p>
-
-      <KeyRow
-        label="Raw (hex)"
-        value={publicKey.raw_hex}
-        copied={copied === 'hex'}
-        onCopy={() => onCopy('hex', publicKey.raw_hex)}
-      />
-      <KeyRow
-        label="JWK"
-        value={jwkText}
-        copied={copied === 'jwk'}
-        onCopy={() => onCopy('jwk', jwkText)}
-      />
+    <div style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <div className="panel-header">
+        <span className="panel-title">Published public key (Ed25519)</span>
+      </div>
+      <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ ...MONO, fontSize: 11, color: 'var(--text-3)', wordBreak: 'break-all' }}>
+          key_id {publicKey.key_id} · fingerprint {publicKey.public_key_fingerprint}
+        </div>
+        <KeyRow
+          label="Raw (hex)"
+          value={publicKey.raw_hex}
+          copied={copied === 'hex'}
+          onCopy={() => onCopy('hex', publicKey.raw_hex)}
+        />
+        <KeyRow
+          label="JWK"
+          value={jwkText}
+          copied={copied === 'jwk'}
+          onCopy={() => onCopy('jwk', jwkText)}
+        />
+      </div>
     </div>
   );
 }
@@ -295,19 +292,14 @@ function KeyRow({
   onCopy: () => void;
 }) {
   return (
-    <div className="mt-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wide text-zinc-500">{label}</span>
-        <button
-          onClick={onCopy}
-          className="rounded bg-zinc-700 px-2 py-0.5 text-xs text-zinc-200 hover:bg-zinc-600"
-        >
-          {copied ? 'Copied ✓' : 'Copy'}
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={SECTION_LABEL}>{label}</span>
+        <button type="button" className="btn sm" onClick={onCopy}>
+          {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="mt-1 overflow-x-auto rounded bg-zinc-900 p-3 font-mono text-xs text-zinc-300">
-        {value}
-      </pre>
+      <pre className="code">{value}</pre>
     </div>
   );
 }

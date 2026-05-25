@@ -1,20 +1,21 @@
 'use client';
 
-// Trading-desk dashboard (Bubble 14) — the v0.2 replacement for the v0.1
-// mike-cortez Mission Control at demo.agentmarshal.dev.
-//
-// Owns the activity-feed source, the demo runner, agent-card flash timing, and
-// the receipt viewer. The "Run demo sequence" trigger fires the four trading
-// scenarios through the REAL /api/access/v1/evaluation endpoint (Phase 0
-// subject.type resolver; no setContractOverride), so every row in the feed is a
-// genuine signed + timestamped record.
+// Trading-desk dashboard (Bubble 15) — Echo OS design language over the Bubble 14
+// behavior. Owns the activity-feed source, the demo runner (with client-side eval
+// timing), agent flash timing, the metrics, and the right-rail mode. "Run demo
+// sequence" fires the four trading scenarios through the REAL
+// /api/access/v1/evaluation endpoint (Phase 0 subject.type resolver; no
+// setContractOverride) — every feed row is a genuine signed + timestamped record.
+// Pure chrome change vs Bubble 14: identical evaluation/feed/verify behavior.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { FleetPanel } from './FleetPanel';
+import { AppShell } from '@/components/shell/AppShell';
+import { MetricsStrip, type Metric } from '@/components/shell/MetricsStrip';
+import { FleetStrip } from './FleetStrip';
 import { ActivityFeed } from './ActivityFeed';
 import { RegulatoryPanel } from './RegulatoryPanel';
-import { ReceiptViewer } from './ReceiptViewer';
+import { ReceiptRail } from './ReceiptRail';
 import {
   InMemoryReceiptFeedSource,
   useReceiptFeed,
@@ -26,10 +27,10 @@ import type { DemoScenario } from '@/lib/dashboard/demo-scenarios';
 import type { OfacSnapshot } from '@/lib/regulatory/ofac';
 
 // Spec Phase 6: 500–1000ms between firings so the feed visibly populates one row
-// at a time. Flash window is shorter so the card settles to its decision color
-// before the next firing.
+// at a time. Flash + fresh windows are shorter so a card settles before the next.
 const RUN_DELAY_MS = 850;
 const FLASH_MS = 550;
+const FRESH_MS = 1500;
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -45,11 +46,15 @@ export function TradingDesk({
   const [running, setRunning] = useState(false);
   const [selected, setSelected] = useState<FeedEntry | null>(null);
   const [flashingType, setFlashingType] = useState<string | null>(null);
+  const [freshId, setFreshId] = useState<string | null>(null);
+  const [evalMs, setEvalMs] = useState<number[]>([]);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const freshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
       if (flashTimer.current) clearTimeout(flashTimer.current);
+      if (freshTimer.current) clearTimeout(freshTimer.current);
     };
   }, []);
 
@@ -59,60 +64,94 @@ export function TradingDesk({
     flashTimer.current = setTimeout(() => setFlashingType(null), FLASH_MS);
   }, []);
 
+  const markFresh = useCallback((id: string) => {
+    setFreshId(id);
+    if (freshTimer.current) clearTimeout(freshTimer.current);
+    freshTimer.current = setTimeout(() => setFreshId(null), FRESH_MS);
+  }, []);
+
   const runDemo = useCallback(async () => {
     if (running) return;
     setRunning(true);
     setSelected(null);
+    setEvalMs([]);
     feed.clear();
     try {
       for (const scenario of demoScenarios) {
+        const t0 = performance.now();
         const res = await fireScenario(scenario.request);
-        feed.append(makeFeedEntry(scenario.request, res));
+        const dt = performance.now() - t0;
+        const entry = makeFeedEntry(scenario.request, res);
+        feed.append(entry);
+        setEvalMs((prev) => [...prev, dt]);
+        markFresh(entry.id);
         flash(scenario.request.subject.type);
         await delay(RUN_DELAY_MS);
       }
     } catch {
-      // A mid-sequence failure leaves the partial feed visible; the operator can
-      // re-run. Nothing to surface beyond the rows that did land.
+      // A mid-sequence failure leaves the partial feed visible; operator re-runs.
     } finally {
       setRunning(false);
     }
-  }, [running, feed, demoScenarios, flash]);
+  }, [running, feed, demoScenarios, flash, markFresh]);
+
+  const denies = entries.filter((e) => e.decision === 'deny').length;
+  const activeAgents = new Set(entries.map((e) => e.agentType)).size;
+  const avgEval = evalMs.length
+    ? `${Math.round(evalMs.reduce((a, b) => a + b, 0) / evalMs.length)}ms`
+    : '—';
+
+  const metrics: Metric[] = [
+    { label: 'Decisions today', value: String(entries.length) },
+    // Three-state (review) lands in Bubble 16; warning tone is reserved for when
+    // this starts populating.
+    { label: 'Yellow flags', value: '0' },
+    { label: 'Hits caught', value: String(denies), tone: denies > 0 ? 'danger' : 'default' },
+    { label: 'Avg eval time', value: avgEval },
+    { label: 'Active agents', value: String(activeAgents) },
+    { label: 'Audit chain length', value: String(entries.length) },
+  ];
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-5 backdrop-blur-sm">
-        <div className="flex items-baseline gap-3">
-          <span className="text-sm font-semibold tracking-tight text-zinc-100">AgentMarshal</span>
-          <span className="text-[11px] text-zinc-500">Trading desk</span>
-        </div>
-        <button
-          type="button"
-          onClick={runDemo}
-          disabled={running}
-          className="inline-flex h-8 items-center bg-zinc-100 px-3.5 text-xs font-medium text-zinc-900 transition-colors hover:bg-white disabled:opacity-50"
+    <AppShell notify={denies > 0}>
+      <div className="page">
+        <div
+          className="page-main"
+          style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         >
-          {running ? 'Running…' : 'Run demo sequence'}
-        </button>
-      </header>
+          <div className="page-header">
+            <div>
+              <h1 className="page-title">Trading Desk</h1>
+              <div className="page-sub">v0.2 · 4 agents · OFAC sanctions screening</div>
+            </div>
+            <div className="page-actions">
+              <button type="button" className="btn primary" onClick={runDemo} disabled={running}>
+                {running ? 'Running…' : 'Run demo sequence'}
+              </button>
+            </div>
+          </div>
 
-      <div className="flex min-h-0 flex-1">
-        <div className="w-72 shrink-0 overflow-y-auto">
-          <FleetPanel entries={entries} flashingType={flashingType} />
+          <MetricsStrip metrics={metrics} />
+          <FleetStrip entries={entries} flashingType={flashingType} />
+
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ActivityFeed
+              entries={entries}
+              selectedId={selected?.id ?? null}
+              freshId={freshId}
+              onSelect={setSelected}
+            />
+          </div>
         </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <ActivityFeed
-            entries={entries}
-            selectedId={selected?.id ?? null}
-            onSelect={setSelected}
-          />
-        </div>
-        <div className="w-80 shrink-0 overflow-y-auto">
-          <RegulatoryPanel snapshot={snapshot} />
+
+        <div className="page-rail">
+          {selected ? (
+            <ReceiptRail entry={selected} onClose={() => setSelected(null)} />
+          ) : (
+            <RegulatoryPanel snapshot={snapshot} />
+          )}
         </div>
       </div>
-
-      {selected && <ReceiptViewer entry={selected} onClose={() => setSelected(null)} />}
-    </main>
+    </AppShell>
   );
 }

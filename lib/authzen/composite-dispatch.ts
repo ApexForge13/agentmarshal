@@ -8,7 +8,11 @@ import Ajv, { type ValidateFunction } from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import type { EvalContext } from './eval-context';
 
-export type CompositeResult = 'pass' | 'fail' | 'stub';
+// 'review' (Bubble 16): a possible-match that blocks the action pending human
+// review — distinct from 'fail' (hard violation) and 'stub' (unresolved input).
+// Like fail/stub it is NOT allowable, so adding it changes no existing predicate
+// behaviour; only entity_not_sanctioned returns it (substring SDN match).
+export type CompositeResult = 'pass' | 'fail' | 'stub' | 'review';
 
 export interface CompositePredicateEvaluation {
   predicate: string;
@@ -63,7 +67,8 @@ export function validateCompositeInput(name: string, input: unknown): Validation
 
 /**
  * Fail-safe allow policy: returns true iff every composite evaluation is `pass`.
- * Stub or fail → false. Empty list → true (vacuous; no composites required).
+ * Stub, fail, or review → false (review blocks allow, same as the others). Empty
+ * list → true (vacuous; no composites required).
  */
 export function isAllowable(evals: CompositePredicateEvaluation[]): boolean {
   return evals.every((e) => e.result === 'pass');

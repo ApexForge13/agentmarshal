@@ -101,6 +101,14 @@ export async function buildInternalAuditRecord(
         reason: er.reason,
       },
     },
+    // Bubble 16: envelope-level three-state, emitted ONLY when review is required.
+    // JCS sorts keys, so absence reproduces pre-Bubble-16 bytes exactly.
+    ...(er.review_required
+      ? {
+          review_required: true as const,
+          ...(er.review_reason !== undefined ? { review_reason: er.review_reason } : {}),
+        }
+      : {}),
     regulatory_state: regulatoryState,
   };
 

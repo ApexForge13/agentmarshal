@@ -107,6 +107,15 @@ export async function buildReceipt(input: BuildReceiptInput): Promise<Compliance
       reason_code: er.reason_code,
       reason: er.reason,
     },
+    // Bubble 16: emit the three-state fields ONLY when review is required. JCS
+    // sorts keys, so absence (the green/red case) reproduces pre-Bubble-16 bytes
+    // exactly — existing signed receipts verify unchanged.
+    ...(er.review_required
+      ? {
+          review_required: true as const,
+          ...(er.review_reason !== undefined ? { review_reason: er.review_reason } : {}),
+        }
+      : {}),
     predicate_evaluations: er.predicate_evaluations,
     composite_evaluations: er.composite_evaluations ?? [],
     regulatory_state: regulatoryState,

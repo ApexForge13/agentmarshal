@@ -30,6 +30,27 @@ describe('verifyReceipt (Bubble 10)', () => {
     expect(r.details!.decision).toBe('allow');
   });
 
+  it('verifies a three-state review receipt; review_required is in the signed body (Bubble 16)', async () => {
+    const r = await verifyReceipt(examples.valid_review);
+    expect(r.verified).toBe(true);
+    expect(r.record_type).toBe('compliance_receipt');
+    expect(r.details!.decision).toBe('deny'); // effect stays deny; review is the sibling
+    expect(r.details!.review_required).toBe(true);
+    expect(r.details!.composites_fired).toContain('entity_not_sanctioned');
+    // Tampering review_required after signing must break the signature (it is part
+    // of the signed bytes — no separate trust path for the three-state field).
+    const forged = structuredClone(examples.valid_review) as Record<string, unknown>;
+    forged.review_required = false;
+    const bad = await verifyReceipt(forged);
+    expect(bad.verified).toBe(false);
+    expect(bad.reason).toMatch(/signature mismatch/i);
+  });
+
+  it('existing fixtures carry no review flag (backward-compatible: review_required false)', async () => {
+    const r = await verifyReceipt(examples.valid_compliance);
+    expect(r.details!.review_required).toBe(false);
+  });
+
   it('reports a valid external timestamp alongside the signature (Bubble 11)', async () => {
     const r = await verifyReceipt(examples.valid_compliance);
     expect(r.verified).toBe(true);

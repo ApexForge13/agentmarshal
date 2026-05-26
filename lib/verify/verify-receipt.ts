@@ -25,6 +25,11 @@ export interface VerifyDetails {
   composites_fired: string[];
   issued_at: string;
   previous_receipt_hash: string | null;
+  // Bubble 16 three-state: true when this record blocked the action pending human
+  // review (top-level review_required on the signed body). false on pre-Bubble-16
+  // records (the field is absent). The field is part of the signed bytes, so a
+  // tampered review_required flips the signature verdict — no separate check needed.
+  review_required: boolean;
 }
 
 export interface VerifyResult {
@@ -110,6 +115,7 @@ function extractDetails(recordType: RecordTypeDiscriminant, obj: Obj): VerifyDet
       issued_at: typeof obj.issued_at === 'string' ? obj.issued_at : '',
       previous_receipt_hash:
         typeof obj.previous_audit_hash === 'string' ? obj.previous_audit_hash : null,
+      review_required: obj.review_required === true,
     };
   }
   const decision = isObject(obj.decision) ? obj.decision : {};
@@ -120,6 +126,7 @@ function extractDetails(recordType: RecordTypeDiscriminant, obj: Obj): VerifyDet
     issued_at: typeof obj.issued_at === 'string' ? obj.issued_at : '',
     previous_receipt_hash:
       typeof obj.previous_receipt_hash === 'string' ? obj.previous_receipt_hash : null,
+    review_required: obj.review_required === true,
   };
 }
 

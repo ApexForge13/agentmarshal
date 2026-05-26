@@ -81,6 +81,13 @@ export interface InternalAuditRecord {
   contract: InternalAuditContract;
   evaluation: InternalAuditEvaluation;
 
+  // Bubble 16 three-state (OPTIONAL, backward-compatible). Envelope-level sibling
+  // of `evaluation`; present only when the decision blocks pending human review.
+  // Absent ⇒ false. Signed when present; omitted keeps pre-Bubble-16 records
+  // byte-identical. Mirrors ComplianceReceipt.
+  review_required?: boolean;
+  review_reason?: string;
+
   regulatory_state: RegulatoryStateAnchor;
   signatures: AuditRecordSignature[];
 

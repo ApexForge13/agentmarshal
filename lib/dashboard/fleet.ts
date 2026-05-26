@@ -20,8 +20,9 @@ export const TRADING_FLEET: readonly FleetAgentMeta[] = [
 ];
 
 // idle: no decision yet. active: receipt just emitted (transient flash).
-// permit/deny: settled to the agent's last decision color.
-export type AgentStatus = 'idle' | 'active' | 'permit' | 'deny';
+// permit/review/deny: settled to the agent's last decision color (Bubble 16
+// adds review — the agent's last action was held pending human review).
+export type AgentStatus = 'idle' | 'active' | 'permit' | 'review' | 'deny';
 
 /** Last decision per agent type, walking the feed newest → oldest. */
 export function lastDecisionByType(entries: FeedEntry[]): Map<string, FeedDecision> {

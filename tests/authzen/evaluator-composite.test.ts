@@ -2,10 +2,12 @@
 // Covers the smoke case of an unknown composite name + happy + fail-safe paths.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { evaluateRequest } from '../../lib/authzen/evaluate';
+import { evaluateRequest, toAuthZenResponse } from '../../lib/authzen/evaluate';
 import {
   clearComposites,
   registerComposite,
+  type CompositePredicate,
+  type CompositeResult,
 } from '../../lib/authzen/composite-dispatch';
 import { quietHoursPredicate } from '../../lib/compliance/predicates/tcpa/quiet-hours';
 import { dncRegistryPredicate } from '../../lib/compliance/predicates/tcpa/dnc-registry';
@@ -145,5 +147,106 @@ describe('evaluator + composite dispatch integration', () => {
     expect(result.effect).toBe('deny');
     expect(result.composite_evaluations?.[0].result).toBe('fail');
     expect(result.composite_evaluations?.[0].reason).toMatch(/composite input invalid/i);
+  });
+});
+
+// Self-contained composites that always return a fixed result — isolate the
+// three-state precedence logic from any real predicate's internals.
+function fixedComposite(name: string, result: CompositeResult): CompositePredicate {
+  return {
+    name,
+    inputSchema: {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      additionalProperties: true,
+    },
+    async evaluate() {
+      return { predicate: name, result, reason: `${name} → ${result}`, details: {} };
+    },
+  };
+}
+
+describe('three-state review_required precedence (Bubble 16)', () => {
+  beforeEach(() => {
+    clearComposites();
+  });
+
+  it('a review composite blocks allow and sets review_required (decision stays false)', async () => {
+    registerComposite(fixedComposite('always_review', 'review'));
+    const contract = makeContract({
+      declared_scope: [
+        {
+          rule_id: 'allow-if-review-clears',
+          match: { subject: { id: { exists: true } } },
+          composite_checks: [{ predicate: 'always_review', input: {} }],
+          decision: { effect: 'allow', reason_code: 'WOULD_ALLOW', reason: '' },
+        },
+      ],
+    });
+
+    const result = await evaluateRequest(baseRequest, contract, {
+      now: new Date('2026-05-21T15:00:00Z'),
+    });
+
+    // review blocks the allow → falls through to the implicit no_match deny.
+    expect(result.effect).toBe('deny');
+    expect(result.review_required).toBe(true);
+    expect(result.review_reason).toBe('always_review → review');
+
+    // AuthZEN boundary: decision is a strict boolean; review rides as a sibling.
+    const response = toAuthZenResponse(result);
+    expect(response.decision).toBe(false);
+    expect(response.review_required).toBe(true);
+    expect(response.review_reason).toBe('always_review → review');
+  });
+
+  it('a hard fail trumps a review in the same rule (review_required stays false)', async () => {
+    registerComposite(fixedComposite('always_fail', 'fail'));
+    registerComposite(fixedComposite('always_review', 'review'));
+    const contract = makeContract({
+      declared_scope: [
+        {
+          rule_id: 'allow-if-both-clear',
+          match: { subject: { id: { exists: true } } },
+          composite_checks: [
+            { predicate: 'always_fail', input: {} },
+            { predicate: 'always_review', input: {} },
+          ],
+          decision: { effect: 'allow', reason_code: 'WOULD_ALLOW', reason: '' },
+        },
+      ],
+    });
+
+    const result = await evaluateRequest(baseRequest, contract, {
+      now: new Date('2026-05-21T15:00:00Z'),
+    });
+
+    expect(result.effect).toBe('deny');
+    expect(result.review_required).toBeFalsy();
+    expect(toAuthZenResponse(result).review_required).toBeUndefined();
+  });
+
+  it('a pure permit carries no review fields', async () => {
+    registerComposite(fixedComposite('always_pass', 'pass'));
+    const contract = makeContract({
+      declared_scope: [
+        {
+          rule_id: 'allow-clean',
+          match: { subject: { id: { exists: true } } },
+          composite_checks: [{ predicate: 'always_pass', input: {} }],
+          decision: { effect: 'allow', reason_code: 'OK', reason: '' },
+        },
+      ],
+    });
+
+    const result = await evaluateRequest(baseRequest, contract, {
+      now: new Date('2026-05-21T15:00:00Z'),
+    });
+
+    expect(result.effect).toBe('allow');
+    expect(result.review_required).toBeUndefined();
+    const response = toAuthZenResponse(result);
+    expect(response.decision).toBe(true);
+    expect(response.review_required).toBeUndefined();
   });
 });

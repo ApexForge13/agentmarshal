@@ -56,5 +56,14 @@ describe('verify example generation', () => {
     expect(tampered.verified).toBe(false);
     expect(tampered.reason).toBe('signature mismatch');
     expect(tampered.timestamp.status).toBe('timestamped');
+
+    // Bubble 16: the three-state review receipt is signature-valid; its
+    // review_required is part of the signed body and surfaces in the verdict.
+    // Built without a timestamper → timestamp 'unavailable', cross-check skipped.
+    const review = await verifyReceipt(examples.valid_review);
+    expect(review.verified).toBe(true);
+    expect(review.record_type).toBe('compliance_receipt');
+    expect(review.details?.review_required).toBe(true);
+    expect(review.timestamp.status).toBe('unavailable');
   });
 });

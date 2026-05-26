@@ -13,11 +13,14 @@
 //   - entity.id                      : string    the entity under review
 //
 // Outcomes (fail-safe; isAllowable permits pass-only):
-//   - either input absent/malformed → STUB  (unresolved; "waiting on regulatory
-//                                             feed" — blocks allow, so no action
-//                                             proceeds against an unverified list)
-//   - entity.id ∈ ofac_sdn_list      → FAIL  (sanctioned counterparty; deny)
-//   - entity.id ∉ ofac_sdn_list      → PASS  (permit)
+//   - either input absent/malformed → STUB    (unresolved; "waiting on regulatory
+//                                               feed" — blocks allow, so no action
+//                                               proceeds against an unverified list)
+//   - entity.id ∈ ofac_sdn_list      → FAIL    (sanctioned counterparty; hard deny)
+//   - entity.id substring-matches an
+//     SDN entry's region token        → REVIEW  (possible match; blocks pending
+//                                               human review — Bubble 16 three-state)
+//   - entity.id otherwise clean       → PASS    (permit)
 //
 // NOTE on the unresolved sentinel: 'stub' is the dispatch registry's established
 // not-yet-wired/unresolvable result (CompositeResult; isAllowable blocks it, same
@@ -31,9 +34,11 @@
 // the entry count) rather than the full list, so a reader can see WHICH snapshot
 // a decision was made against without embedding the list in every receipt.
 //
-// v0.2 stub assumption: ofac_sdn_list is pre-normalized and exact string
-// matching is sufficient. The Bright Data-wired version handles alias/fuzzy
-// resolution downstream.
+// v0.2 stub assumption: ofac_sdn_list is pre-normalized; exact match is a hard
+// hit and a region-token substring match is a possible match that routes to human
+// review. This mirrors the standard sanctions-screening workflow (exact → block,
+// fuzzy → analyst review). The Bright Data-wired v0.3 version replaces the
+// substring stub with real fuzzy resolution (Levenshtein / phonetic / alias).
 
 import type {
   CompositePredicate,
@@ -77,6 +82,55 @@ function readEntityId(props: Record<string, unknown> | undefined): string | null
   const id = (entity as Record<string, unknown>)['id'];
   if (typeof id !== 'string' || id.length === 0) return null;
   return id;
+}
+
+// Distinctive region/country tokens that identify an SDN entry's jurisdiction.
+// Bubble 16 substring-match stub: an entity whose id CONTAINS one of these tokens
+// (and the token is present in the active SDN snapshot) is a possible match that
+// routes to human review. v0.3 replaces this with real fuzzy matching.
+const SDN_REGION_TOKENS: readonly string[] = [
+  'IRAN',
+  'CRIMEA',
+  'DPRK',
+  'NKOREA',
+  'SYRIA',
+  'CUBA',
+  'RUSSIA',
+];
+
+/**
+ * Region tokens actually present in THIS SDN snapshot, each mapped to the entry it
+ * was extracted from (split on '-'), so a receipt can cite which SDN entry drove a
+ * possible match. Only tokens in both the allowlist AND the snapshot are indexed —
+ * an entity matching a region not on the current list is NOT flagged.
+ */
+function regionTokenIndex(sdnList: string[]): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const entry of sdnList) {
+    const parts = entry.toUpperCase().split('-');
+    for (const token of SDN_REGION_TOKENS) {
+      if (!index.has(token) && parts.includes(token)) index.set(token, entry);
+    }
+  }
+  return index;
+}
+
+/**
+ * First region token (allowlist order, for determinism) that appears as a
+ * substring of entityId AND is present in the snapshot. null when none match.
+ */
+function findRegionSubstringMatch(
+  entityId: string,
+  index: Map<string, string>,
+): { token: string; sdnEntry: string } | null {
+  const haystack = entityId.toUpperCase();
+  for (const token of SDN_REGION_TOKENS) {
+    const sdnEntry = index.get(token);
+    if (sdnEntry !== undefined && haystack.includes(token)) {
+      return { token, sdnEntry };
+    }
+  }
+  return null;
 }
 
 /**
@@ -140,6 +194,33 @@ export const entityNotSanctionedPredicate: CompositePredicate<EntityNotSanctione
           reasons: [
             'counterparty/target entity matched an entry on the injected OFAC SDN list',
             'fail-safe sanctions policy blocks the action before execution',
+          ],
+        },
+      };
+    }
+
+    // Outcome 2b — possible match (Bubble 16): entity.id is not an exact hit but
+    // contains the distinctive region/country token of an SDN entry → review.
+    // Blocks pending human review (isAllowable treats review like fail/stub). The
+    // matched substring + source SDN entry are recorded so an analyst sees exactly
+    // why it was held. v0.2 substring stub; v0.3 swaps in real fuzzy matching.
+    const possibleMatch = findRegionSubstringMatch(entityId, regionTokenIndex(sdnList));
+    if (possibleMatch) {
+      return {
+        predicate: PREDICATE_NAME,
+        result: 'review',
+        reason: `entity ${entityId} possibly matches the OFAC SDN list (substring "${possibleMatch.token}" against SDN entry ${possibleMatch.sdnEntry}); blocking pending analyst review`,
+        details: {
+          entity_id: entityId,
+          matched_entry: null,
+          possible_match: true,
+          matched_substring: possibleMatch.token,
+          matched_against: possibleMatch.sdnEntry,
+          sdn_list_fingerprint: fingerprint,
+          reasons: [
+            `counterparty/target entity contains the region token "${possibleMatch.token}" extracted from SDN entry ${possibleMatch.sdnEntry}`,
+            'fail-safe sanctions policy holds the action pending human review (possible match, not an exact SDN hit)',
+            'v0.2 substring-match stub: v0.3 replaces this with fuzzy matching (Levenshtein / phonetic / alias resolution)',
           ],
         },
       };

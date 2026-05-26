@@ -109,6 +109,7 @@ export async function evaluateRequest(
       reason: rule.decision.reason || '',
       predicate_evaluations: allPredicateEvals,
       composite_evaluations: allCompositeEvals.length > 0 ? allCompositeEvals : undefined,
+      ...reviewFieldsFor(rule.decision.effect, allCompositeEvals),
     };
   }
 
@@ -122,7 +123,27 @@ export async function evaluateRequest(
     reason: 'No declared_scope rule matched; implicit deny per Scope Contract semantics.',
     predicate_evaluations: allPredicateEvals,
     composite_evaluations: allCompositeEvals.length > 0 ? allCompositeEvals : undefined,
+    ...reviewFieldsFor('deny', allCompositeEvals),
   };
+}
+
+/**
+ * Bubble 16 three-state precedence. `review_required` is true only when some
+ * composite returned `review` AND none returned `fail` (a hard fail dominates a
+ * possible-match) AND the decision is not an allow (a permit is never "pending
+ * review"). review_reason is the first review composite's reason. Returns an
+ * empty object when no review applies, so callers spread it without adding keys.
+ */
+function reviewFieldsFor(
+  effect: ScopeContractEffect,
+  compositeEvals: CompositePredicateEvaluation[],
+): { review_required?: boolean; review_reason?: string } {
+  if (effect === 'allow') return {};
+  const hasFail = compositeEvals.some((e) => e.result === 'fail');
+  if (hasFail) return {};
+  const firstReview = compositeEvals.find((e) => e.result === 'review');
+  if (!firstReview) return {};
+  return { review_required: true, review_reason: firstReview.reason };
 }
 
 async function runCompositeChecks(
@@ -285,6 +306,8 @@ function entityMatches(
 /**
  * Map Scope Contract evaluation to AuthZEN response.
  * allow → decision:true; deny → false; escalate → false (with escalation_required in context).
+ * review_required/review_reason ride along as siblings when set (Bubble 16) — the
+ * decision stays a strict boolean for AuthZEN 1.0 compliance.
  */
 export function toAuthZenResponse(result: EvaluationResult): AuthZenResponse {
   const baseContext: Record<string, unknown> = {
@@ -294,11 +317,16 @@ export function toAuthZenResponse(result: EvaluationResult): AuthZenResponse {
     evaluation_path: result.evaluation_path,
   };
 
+  // Surface the three-state sibling only when review is required (absent ⇒ false).
+  const review = result.review_required
+    ? { review_required: true as const, review_reason: result.review_reason }
+    : {};
+
   if (result.effect === 'allow') {
     return { decision: true, context: baseContext };
   }
   if (result.effect === 'escalate') {
-    return { decision: false, context: { ...baseContext, escalation_required: true } };
+    return { decision: false, ...review, context: { ...baseContext, escalation_required: true } };
   }
-  return { decision: false, context: baseContext };
+  return { decision: false, ...review, context: baseContext };
 }

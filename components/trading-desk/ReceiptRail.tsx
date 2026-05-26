@@ -7,8 +7,17 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { VERIFY_HANDOFF_KEY } from '@/lib/verify/handoff';
-import { extractComposites, type FeedEntry } from '@/lib/dashboard/feed';
+import { extractComposites, type FeedDecision, type FeedEntry } from '@/lib/dashboard/feed';
+import { highlightJson } from '@/lib/dashboard/highlight-json';
 import type { VerifyResult } from '@/lib/verify/verify-receipt';
+
+// Three-state decision badge (Bubble 16). The rail spells out "REVIEW REQUIRED";
+// the feed row + fleet card use the compact "REVIEW".
+const DECISION_BADGE: Record<FeedDecision, { cls: string; label: string }> = {
+  permit: { cls: 'healthy', label: 'PERMIT' },
+  review: { cls: 'warning', label: 'REVIEW REQUIRED' },
+  deny: { cls: 'danger', label: 'DENY' },
+};
 
 type VerifyState =
   | { status: 'loading' }
@@ -78,7 +87,7 @@ export function ReceiptRail({ entry, onClose }: { entry: FeedEntry; onClose: () 
     window.open('/verify', '_blank', 'noopener');
   }, [entry.record]);
 
-  const permit = entry.decision === 'permit';
+  const decisionBadge = DECISION_BADGE[entry.decision];
   const composites = extractComposites(entry.record);
 
   return (
@@ -104,12 +113,25 @@ export function ReceiptRail({ entry, onClose }: { entry: FeedEntry; onClose: () 
         <div className="title">Decision</div>
         <Kv
           k="Decision"
-          v={<span className={`badge ${permit ? 'healthy' : 'danger'}`}>{permit ? 'PERMIT' : 'DENY'}</span>}
+          v={<span className={`badge ${decisionBadge.cls}`}>{decisionBadge.label}</span>}
         />
         <Kv k="Agent" v={entry.agentType} />
         <Kv k="Action" v={entry.actionName} />
         <Kv k="Entity" v={entry.entityId ?? '—'} />
         <Kv k="Decided at" v={entry.issuedAt} />
+        {entry.decision === 'review' && entry.reviewReason && (
+          <p
+            style={{
+              marginTop: 10,
+              fontSize: 11,
+              lineHeight: 1.6,
+              color: 'var(--warning)',
+              fontFamily: 'var(--mono)',
+            }}
+          >
+            {entry.reviewReason}
+          </p>
+        )}
       </div>
 
       <div className="rail-section">
@@ -177,27 +199,17 @@ function CompositeBadge({ result, details }: { result: string; details?: Record<
       </span>
     );
   }
+  if (result === 'review') {
+    const sub = details?.['matched_substring'];
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span className="badge warning">REVIEW</span>
+        {typeof sub === 'string' && (
+          <span style={{ color: 'var(--text-3)' }}>possible match &ldquo;{sub}&rdquo;</span>
+        )}
+      </span>
+    );
+  }
   if (result === 'stub') return <span className="badge warning">UNRESOLVED</span>;
   return <span className="badge healthy">PASS</span>;
-}
-
-// JSON syntax highlight → Echo OS .code spans (.k key, .s string, .n number,
-// .b bool/null). Escape first; receipts are our own output, safe post-escape.
-function highlightJson(json: string): string {
-  const escaped = json
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  return escaped.replace(
-    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
-    (match) => {
-      let cls = 'n'; // number
-      if (/^"/.test(match)) {
-        cls = /:$/.test(match) ? 'k' : 's'; // key : string
-      } else if (/true|false|null/.test(match)) {
-        cls = 'b';
-      }
-      return `<span class="${cls}">${match}</span>`;
-    },
-  );
 }

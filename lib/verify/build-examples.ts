@@ -26,6 +26,10 @@ const FIXED = {
   auditRecordId: 'ia-22222222-2222-4222-8222-222222222222',
   evaluationId: '33333333-3333-4333-8333-333333333333',
   requestId: '44444444-4444-4444-8444-444444444444',
+  // Bubble 16 review fixture — distinct ids so the three examples never collide.
+  reviewReceiptId: '55555555-5555-4555-8555-555555555555',
+  reviewEvaluationId: '66666666-6666-4666-8666-666666666666',
+  reviewRequestId: '77777777-7777-4777-8777-777777777777',
 };
 
 // voice-001 consent-revoked deny: the consent composite fails, the 3 Bubble-3
@@ -77,6 +81,48 @@ const VOICE_DENY: EvaluationResult = {
   ],
 };
 
+// Bubble 16 three-state: a substring-match REVIEW. entity_not_sanctioned returns
+// 'review' (possible match, not an exact hit), which blocks the allow → no_match
+// deny with review_required=true. Exercises the receipt's optional review fields
+// + the 'review' composite enum end-to-end through verifyReceipt.
+const REVIEW_REASON =
+  'entity ENT-IRAN-RESEARCH-555 possibly matches the OFAC SDN list (substring "IRAN" against SDN entry SYN-SDN-IRAN-MARITIME-001); blocking pending analyst review';
+
+const TRADING_REVIEW: EvaluationResult = {
+  effect: 'deny',
+  evaluation_path: 'no_match',
+  matched_rule_id: null,
+  out_of_scope_term: null,
+  reason_code: 'NO_MATCH_IMPLICIT_DENY',
+  reason: 'No declared_scope rule matched; implicit deny per Scope Contract semantics.',
+  review_required: true,
+  review_reason: REVIEW_REASON,
+  predicate_evaluations: [
+    {
+      rule_id: 'trading-v1-base',
+      predicate_path: 'subject.id',
+      constraint: { exists: true },
+      actual_value: 'execution-agent-001',
+      result: 'pass',
+      reason: 'subject.id is present',
+    },
+  ],
+  composite_evaluations: [
+    {
+      predicate: 'entity_not_sanctioned',
+      result: 'review',
+      reason: REVIEW_REASON,
+      details: {
+        entity_id: 'ENT-IRAN-RESEARCH-555',
+        matched_entry: null,
+        possible_match: true,
+        matched_substring: 'IRAN',
+        matched_against: 'SYN-SDN-IRAN-MARITIME-001',
+      },
+    },
+  ],
+};
+
 // personalizer-001 score_lead allow: non-customer-touching agent → Internal Audit.
 const PERSONALIZER_ALLOW: EvaluationResult = {
   effect: 'allow',
@@ -102,6 +148,8 @@ export interface VerifyExamples {
   valid_compliance: Record<string, unknown>;
   valid_internal_audit: Record<string, unknown>;
   tampered_compliance: Record<string, unknown>;
+  // Bubble 16: a signature-valid Compliance Receipt in the three-state review hold.
+  valid_review: Record<string, unknown>;
 }
 
 export interface BuildExamplesOptions {
@@ -159,6 +207,26 @@ export async function buildExamples({
     timestamper,
   })) as unknown as Record<string, unknown>;
 
+  // Bubble 16 review receipt. No timestamper passed: signature-valid but not
+  // externally timestamped, so verifyReceipt reports timestamp 'unavailable' and
+  // skips the issued_at cross-check — keeping this fixture independent of the
+  // captured FreeTSA tokens (whose hashes are keyed to the other two receipts).
+  const reviewReceipt = await buildReceipt({
+    evaluationResult: TRADING_REVIEW,
+    tenantId: 'default',
+    agentId: 'execution-agent-001',
+    contractId: 'trading_v1',
+    contractVersion: '0.1',
+    evaluationId: FIXED.reviewEvaluationId,
+    requestId: FIXED.reviewRequestId,
+    codeVersion: FIXED.codeVersion,
+    previousReceiptHash: null,
+    issuedAt,
+    receiptId: FIXED.reviewReceiptId,
+    signers: [{ handle, role: 'agentmarshal', signedAt }],
+  });
+  const valid_review = { record_type: 'compliance_receipt', ...reviewReceipt };
+
   // Tamper: flip the signed decision from deny → permit AFTER signing. The
   // signature was computed over the 'deny' body, so verification must fail.
   const tampered_compliance = structuredClone(valid_compliance) as Record<string, unknown>;
@@ -167,5 +235,5 @@ export async function buildExamples({
   tamperedDecision.reason_code = 'TAMPERED_TO_PERMIT';
   tamperedDecision.reason = 'decision field altered after signing (tamper demo)';
 
-  return { valid_compliance, valid_internal_audit, tampered_compliance };
+  return { valid_compliance, valid_internal_audit, tampered_compliance, valid_review };
 }

@@ -21,6 +21,7 @@ function entry(agentType: string): FeedEntry {
     actionName: 'a',
     entityId: null,
     decision: 'permit',
+    reviewReason: null,
     compositeSummary: '',
     record: null,
   };
@@ -117,6 +118,15 @@ describe('compositeSummary', () => {
     expect(compositeSummary([{ predicate: 'p', result: 'stub' }])).toBe('p: unresolved');
   });
 
+  it('formats review with the matched substring (Bubble 16)', () => {
+    expect(
+      compositeSummary([
+        { predicate: 'entity_not_sanctioned', result: 'review', details: { matched_substring: 'IRAN' } },
+      ]),
+    ).toBe('entity_not_sanctioned: review (possible match "IRAN")');
+    expect(compositeSummary([{ predicate: 'p', result: 'review' }])).toBe('p: review');
+  });
+
   it('reports the empty case', () => {
     expect(compositeSummary([])).toBe('no composite checks');
   });
@@ -163,8 +173,33 @@ describe('makeFeedEntry', () => {
   it('handles a missing record (falls back to client time, no composites)', () => {
     const e = makeFeedEntry(req, { decision: true });
     expect(e.decision).toBe('permit');
+    expect(e.reviewReason).toBeNull();
     expect(e.record).toBeNull();
     expect(typeof e.issuedAt).toBe('string');
     expect(e.compositeSummary).toBe('no composite checks');
+  });
+
+  it('maps a review response to a review entry carrying the reason (Bubble 16)', () => {
+    const e = makeFeedEntry(req, {
+      decision: false,
+      review_required: true,
+      review_reason: 'possible match on "IRAN"',
+      record: {
+        record_type: 'internal_audit',
+        issued_at: '2026-05-24T18:00:00Z',
+        evaluation: {
+          composite_evaluations: [
+            {
+              predicate: 'entity_not_sanctioned',
+              result: 'review',
+              details: { matched_substring: 'IRAN' },
+            },
+          ],
+        },
+      } as unknown as SignedRecord,
+    });
+    expect(e.decision).toBe('review');
+    expect(e.reviewReason).toBe('possible match on "IRAN"');
+    expect(e.compositeSummary).toBe('entity_not_sanctioned: review (possible match "IRAN")');
   });
 });

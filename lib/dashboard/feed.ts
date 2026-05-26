@@ -19,11 +19,16 @@ export type SignedRecord = Record<string, unknown> & { record_type?: string };
 
 export interface EvaluationResponse {
   decision: boolean;
+  // Bubble 16 three-state siblings (top-level on the AuthZEN response). Absent ⇒
+  // false. When review_required is true, decision is false but the block is a
+  // "pending human review" hold, not a hard deny — the feed renders it yellow.
+  review_required?: boolean;
+  review_reason?: string;
   context?: Record<string, unknown>;
   record?: SignedRecord;
 }
 
-export type FeedDecision = 'permit' | 'deny';
+export type FeedDecision = 'permit' | 'review' | 'deny';
 
 export interface FeedEntry {
   /** Stable per-emission id. */
@@ -35,6 +40,8 @@ export interface FeedEntry {
   actionName: string;
   entityId: string | null;
   decision: FeedDecision;
+  /** Reason for a review hold (Bubble 16); null unless decision === 'review'. */
+  reviewReason: string | null;
   /** e.g. "entity_not_sanctioned: fail (matched SYN-SDN-IRAN-MARITIME-001)". */
   compositeSummary: string;
   record: SignedRecord | null;
@@ -42,7 +49,7 @@ export interface FeedEntry {
 
 interface CompositeEval {
   predicate: string;
-  result: string; // 'pass' | 'fail' | 'stub'
+  result: string; // 'pass' | 'fail' | 'stub' | 'review'
   reason?: string;
   details?: Record<string, unknown>;
 }
@@ -76,6 +83,12 @@ export function compositeSummary(composites: CompositeEval[]): string {
           ? `${c.predicate}: fail (matched ${matched})`
           : `${c.predicate}: fail`;
       }
+      if (c.result === 'review') {
+        const sub = c.details?.['matched_substring'];
+        return typeof sub === 'string'
+          ? `${c.predicate}: review (possible match "${sub}")`
+          : `${c.predicate}: review`;
+      }
       if (c.result === 'stub') return `${c.predicate}: unresolved`;
       return `${c.predicate}: ${c.result}`;
     })
@@ -92,6 +105,19 @@ function readEntityId(req: AuthZenRequest): string | null {
   return null;
 }
 
+export interface DecisionBreakdown {
+  permit: number;
+  review: number;
+  deny: number;
+}
+
+/** Tally a feed's decisions by three-state outcome. Drives metrics + session rail. */
+export function decisionBreakdown(entries: FeedEntry[]): DecisionBreakdown {
+  const b: DecisionBreakdown = { permit: 0, review: 0, deny: 0 };
+  for (const e of entries) b[e.decision] += 1;
+  return b;
+}
+
 function freshId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (c && typeof c.randomUUID === 'function') return c.randomUUID();
@@ -102,6 +128,10 @@ function freshId(): string {
 export function makeFeedEntry(req: AuthZenRequest, res: EvaluationResponse): FeedEntry {
   const record = res.record ?? null;
   const issuedAt = (record?.['issued_at'] as string | undefined) ?? new Date().toISOString();
+  // Three-state precedence (Bubble 16): review_required wins over the boolean
+  // (which is false when review is required). permit only when decision is true.
+  const reviewRequired = res.review_required === true;
+  const decision: FeedDecision = reviewRequired ? 'review' : res.decision ? 'permit' : 'deny';
   return {
     id: freshId(),
     issuedAt,
@@ -109,7 +139,8 @@ export function makeFeedEntry(req: AuthZenRequest, res: EvaluationResponse): Fee
     agentId: req.subject.id,
     actionName: req.action.name,
     entityId: readEntityId(req),
-    decision: res.decision ? 'permit' : 'deny',
+    decision,
+    reviewReason: reviewRequired ? (res.review_reason ?? null) : null,
     compositeSummary: compositeSummary(extractComposites(record)),
     record,
   };

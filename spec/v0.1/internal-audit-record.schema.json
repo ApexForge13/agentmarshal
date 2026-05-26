@@ -209,6 +209,15 @@
       }
     },
 
+    "review_required": {
+      "description": "OPTIONAL (Bubble 16 three-state). True when the decision blocks the action pending human review (some composite returned 'review' and none returned 'fail') rather than denying outright. Absent ⇒ false; backward-compatible with all pre-Bubble-16 records, which omit it. evaluation.decision.effect remains the strict allow/deny/escalate vocabulary; this envelope field carries the richer status.",
+      "type": "boolean"
+    },
+    "review_reason": {
+      "description": "OPTIONAL (Bubble 16). Human-readable reason for the review hold; present only when review_required is true.",
+      "type": "string"
+    },
+
     "regulatory_state": {
       "description": "Anchor that ties this audit record to a point-in-time snapshot of external regulatory data. Same shape as Compliance Receipts.",
       "type": "object",
@@ -301,9 +310,9 @@
           "minLength": 1
         },
         "result": {
-          "description": "Composite result. 'pass' is allowable; 'fail' and 'stub' block allow under the fail-safe policy.",
+          "description": "Composite result. 'pass' is allowable; 'fail', 'stub', and 'review' block allow under the fail-safe policy. 'review' (Bubble 16) marks a possible-match that blocks pending human review, distinct from a hard 'fail'.",
           "type": "string",
-          "enum": ["pass", "fail", "stub"]
+          "enum": ["pass", "fail", "stub", "review"]
         },
         "reason": {
           "description": "Human-readable reason produced by the composite predicate.",

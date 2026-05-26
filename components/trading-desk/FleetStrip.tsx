@@ -14,6 +14,7 @@ const DOT_CLASS: Record<AgentStatus, string> = {
   idle: 'neutral',
   active: 'accent pulse',
   permit: 'healthy',
+  review: 'warning',
   deny: 'danger',
 };
 
@@ -21,6 +22,7 @@ const BADGE: Record<AgentStatus, { cls: string; label: string }> = {
   idle: { cls: 'neutral', label: 'Idle' },
   active: { cls: 'accent', label: 'Active' },
   permit: { cls: 'healthy', label: 'Permit' },
+  review: { cls: 'warning', label: 'Review' },
   deny: { cls: 'danger', label: 'Deny' },
 };
 
@@ -28,6 +30,7 @@ const ACCENT_BAR: Record<AgentStatus, string> = {
   idle: '2px solid transparent',
   active: '2px solid var(--accent)',
   permit: '2px solid var(--healthy)',
+  review: '2px solid var(--warning)',
   deny: '2px solid var(--danger)',
 };
 
@@ -54,15 +57,20 @@ export function FleetStrip({
             style={{ display: 'flex', flexDirection: 'column', gap: 8, borderLeft: ACCENT_BAR[status] }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text)' }}>
-                {agent.type}
+              {/* Badge sits inline beside the agent type. In a row flex it sizes to
+                  content; the previous bottom-row placement stretched it full-width
+                  under the card's column flex (align-items: stretch). */}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text)' }}>
+                  {agent.type}
+                </span>
+                <span className={`badge ${badge.cls}`}>{badge.label}</span>
               </span>
               <span className={`dot ${DOT_CLASS[status]}`} />
             </div>
             <span style={{ fontSize: 11, color: 'var(--text-3)', lineHeight: 1.4, minHeight: 30 }}>
               {agent.role}
             </span>
-            <span className={`badge ${badge.cls}`}>{badge.label}</span>
           </div>
         );
       })}

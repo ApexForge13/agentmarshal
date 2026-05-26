@@ -32,6 +32,14 @@ export interface AuthZenRequest {
 /** AuthZEN response. decision:true = allow; decision:false = deny OR escalate. */
 export interface AuthZenResponse {
   decision: boolean;
+  /**
+   * Bubble 16 three-state sibling. `decision` stays a strict AuthZEN 1.0 boolean;
+   * `review_required` carries the richer status when a composite returns `review`
+   * (decision is false but the block is "pending human review", not a hard deny).
+   * Absent ⇒ false. `review_reason` is set only when review_required is true.
+   */
+  review_required?: boolean;
+  review_reason?: string;
   context?: Record<string, unknown>;
 }
 
@@ -54,10 +62,18 @@ export interface EvaluationResult {
    */
   composite_evaluations?: Array<{
     predicate: string;
-    result: 'pass' | 'fail' | 'stub';
+    result: 'pass' | 'fail' | 'stub' | 'review';
     reason: string;
     details: Record<string, unknown>;
   }>;
+  /**
+   * Bubble 16 three-state. Set true when some composite returned `review` and none
+   * returned `fail` (fail trumps review). When true, effect is non-allow (the
+   * review blocks the action) and review_reason carries the first review reason.
+   * Omitted ⇒ false. Flows to the AuthZEN response sibling + the signed record.
+   */
+  review_required?: boolean;
+  review_reason?: string;
 }
 
 /** Per-predicate evaluation record — matches audit-record schema PredicateEvaluation $def. */

@@ -51,6 +51,15 @@ export interface ComplianceReceipt {
   request_id: string;
 
   decision: ComplianceReceiptDecision;
+
+  // Bubble 16 three-state (OPTIONAL, backward-compatible). Present only when the
+  // decision is a block pending human review (a composite returned 'review' and
+  // none returned 'fail'). Absent ⇒ false. Included in the signed body when
+  // present, so verification round-trips; omitted otherwise, so every pre-Bubble-16
+  // receipt remains byte-identical.
+  review_required?: boolean;
+  review_reason?: string;
+
   predicate_evaluations: PredicateEvaluation[];
   composite_evaluations: CompositePredicateEvaluation[];
 

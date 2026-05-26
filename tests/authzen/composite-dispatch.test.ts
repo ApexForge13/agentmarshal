@@ -67,4 +67,14 @@ describe('composite dispatch', () => {
     expect(isAllowable(withStub)).toBe(false);
     expect(isAllowable(withFail)).toBe(false);
   });
+
+  it('accepts the review result and blocks allow with it (Bubble 16, same as fail/stub)', () => {
+    // The CompositeResult union admits 'review'; this compiles and isAllowable
+    // treats it as non-allowable — adding review changes no existing behaviour.
+    const withReview: CompositePredicateEvaluation[] = [
+      { predicate: 'a', result: 'pass', reason: '', details: {} },
+      { predicate: 'b', result: 'review', reason: 'possible match pending review', details: {} },
+    ];
+    expect(isAllowable(withReview)).toBe(false);
+  });
 });

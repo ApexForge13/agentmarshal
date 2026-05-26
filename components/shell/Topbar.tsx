@@ -1,14 +1,27 @@
-// Echo OS topbar (Phase 2). Breadcrumb + (non-functional) global search +
-// notification / settings actions. The notification dot lights when the session
-// has produced a deny.
+// Echo OS topbar (Phase 2; Bubble 16 made the breadcrumb route-aware). Breadcrumb
+// + (non-functional) global search + notification / settings actions. The
+// notification dot lights when the session has produced a deny.
+
+'use client';
+
+import { usePathname } from 'next/navigation';
+
+const CRUMB_FOR: Record<string, string> = {
+  '/': 'Trading Desk',
+  '/audit-trail': 'Audit Trail',
+  '/scope-contracts': 'Scope Contracts',
+  '/verify': 'Verify',
+};
 
 export function Topbar({ notify }: { notify?: boolean }) {
+  const pathname = usePathname();
+  const crumb = CRUMB_FOR[pathname] ?? 'Trading Desk';
   return (
     <div className="topbar">
       <div className="breadcrumb">
         <span>AgentMarshal</span>
         <span className="crumb-sep">/</span>
-        <span className="crumb-cur">Trading Desk</span>
+        <span className="crumb-cur">{crumb}</span>
       </div>
 
       <div className="global-search" role="search" aria-label="Search">

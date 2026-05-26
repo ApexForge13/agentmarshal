@@ -81,6 +81,55 @@ describe('trading entity_not_sanctioned predicate (Bubble 13 real / OFAC PRE-sca
     expect(isAllowable([result])).toBe(false);
   });
 
+  // Block 2b — possible match (Bubble 16): an entity that is NOT an exact SDN hit
+  // but whose id contains the distinctive region token of an SDN entry → review.
+  // Blocks allow, records the matched substring + source entry. Exact match still
+  // wins (Block 2 returns 'fail' for the verbatim SDN id, not 'review').
+  it("returns 'review' on a region-token substring match and records the matched substring + source", async () => {
+    const result = await entityNotSanctionedPredicate.evaluate(
+      {},
+      makeCtx({
+        regulatory_state: { ofac_sdn_list: SDN_LIST },
+        entity: { id: 'ENT-IRAN-RESEARCH-555' },
+      }),
+    );
+    expect(result.result).toBe('review');
+    expect(result.reason).toMatch(/possibly matches/i);
+    expect(result.details.entity_id).toBe('ENT-IRAN-RESEARCH-555');
+    expect(result.details.matched_entry).toBeNull();
+    expect(result.details.possible_match).toBe(true);
+    expect(result.details.matched_substring).toBe('IRAN');
+    expect(result.details.matched_against).toBe('SYN-SDN-IRAN-MARITIME-001');
+    expect(isAllowable([result])).toBe(false);
+  });
+
+  it("matches the other snapshot region tokens (CRIMEA, DPRK) → review", async () => {
+    const crimea = await entityNotSanctionedPredicate.evaluate(
+      {},
+      makeCtx({ regulatory_state: { ofac_sdn_list: SDN_LIST }, entity: { id: 'ENT-CRIMEA-HOLDINGS-LLC' } }),
+    );
+    expect(crimea.result).toBe('review');
+    expect(crimea.details.matched_substring).toBe('CRIMEA');
+
+    const dprk = await entityNotSanctionedPredicate.evaluate(
+      {},
+      makeCtx({ regulatory_state: { ofac_sdn_list: SDN_LIST }, entity: { id: 'ENT-DPRK-CORP-77' } }),
+    );
+    expect(dprk.result).toBe('review');
+    expect(dprk.details.matched_substring).toBe('DPRK');
+  });
+
+  it("does NOT flag a region token absent from the active snapshot (→ pass)", async () => {
+    // SYRIA is in the allowlist but not in SDN_LIST, so an entity containing it is
+    // clean against THIS snapshot — substring review requires the token to be present.
+    const result = await entityNotSanctionedPredicate.evaluate(
+      {},
+      makeCtx({ regulatory_state: { ofac_sdn_list: SDN_LIST }, entity: { id: 'ENT-SYRIA-TRADING-009' } }),
+    );
+    expect(result.result).toBe('pass');
+    expect(isAllowable([result])).toBe(true);
+  });
+
   // Block 3 — unresolved: an absent runtime input yields the 'stub' sentinel that
   // blocks allow and records the missing input for the "waiting on regulatory
   // feed" dashboard state. Two cases under one describe.

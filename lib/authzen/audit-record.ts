@@ -20,6 +20,10 @@ export interface AuditRecord {
   out_of_scope_term?: string | object | null;
   reason_code: string;
   reason?: string;
+  // Bubble 16 three-state (optional, backward-compatible): set when the decision
+  // is a block pending human review rather than a hard deny.
+  review_required?: boolean;
+  review_reason?: string;
   predicate_evaluations?: PredicateEvaluation[];
   composite_evaluations?: unknown[];
   escalation_ticket_id?: string | null;

@@ -43,3 +43,33 @@ export interface BdSerpSearchResult {
   bd_request_id: string | null;
   status: number;
 }
+
+// === Bubble 18: Web Unlocker / Crawl API result types ===
+// Same field set as BdSerpSearchResult: `raw` is the exact response body (the
+// fingerprint substrate the tool layer sha256s into bd_call.response_sha256),
+// `results` is the per-service view surfaced to the agent, `bd_request_id` is BD's
+// trace id. sha256/size/duration are computed by the tool layer, not the client.
+
+/**
+ * Result of a raw-format BD Direct API fetch (Web Unlocker). The upstream is fetched
+ * with format:"raw", so `results.content` is the response body (typically HTML) — the
+ * same bytes as `raw`, surfaced as the agent-facing payload.
+ */
+export interface BdContentFetchResult {
+  results: { content: string };
+  raw: string;
+  bd_request_id: string | null;
+  status: number;
+}
+
+/**
+ * Result of bdCrawlScrape. The Crawl API (datasets/v3/scrape) returns an array — one
+ * entry per input URL. We always send a single URL, so `results.items` is that array
+ * (flattened to a 1-element array when BD returns a bare object).
+ */
+export interface BdCrawlResult {
+  results: { items: unknown[] };
+  raw: string;
+  bd_request_id: string | null;
+  status: number;
+}

@@ -59,6 +59,25 @@ describe('scope-contract.schema.json — bd_permissions (Bubble 17)', () => {
     );
   });
 
+  it('accepts crawl_api as a service enum value (Bubble 18)', () => {
+    const c = {
+      ...baseContract(),
+      bd_permissions: [
+        {
+          rule_id: 'adverse_media_extract',
+          match: {
+            service: 'crawl_api',
+            tool: 'scrape_url',
+            parameters: { purpose: { equals: 'adverse_media_extract' } },
+          },
+          composite_checks: ['bd_service_authorized', 'bd_query_purpose_matches'],
+          decision: 'permit',
+        },
+      ],
+    };
+    expect(validateContract(c).valid).toBe(true);
+  });
+
   it('rejects a bd_permissions rule missing match.service (clear error)', () => {
     const c = {
       ...baseContract(),

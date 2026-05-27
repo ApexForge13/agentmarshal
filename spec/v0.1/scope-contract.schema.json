@@ -428,7 +428,7 @@
             "service": {
               "description": "Bright Data service this rule authorizes.",
               "type": "string",
-              "enum": ["serp_api", "web_unlocker", "scraping_browser", "web_scraper_api", "proxies", "scraper_studio", "mcp_server"]
+              "enum": ["serp_api", "web_unlocker", "scraping_browser", "web_scraper_api", "proxies", "scraper_studio", "mcp_server", "crawl_api"]
             },
             "tool": {
               "description": "Service-specific tool name (e.g. 'search_google' for serp_api). Omit to match any tool of the service.",

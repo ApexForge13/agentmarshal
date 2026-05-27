@@ -7,12 +7,14 @@
 import { registerComposite } from '@/lib/authzen/composite-dispatch';
 import { bdServiceAuthorizedPredicate } from './bd_service_authorized';
 import { bdQueryPurposeMatchesPredicate } from './bd_query_purpose_matches';
+import { bdDomainInScopePredicate } from './bd_domain_in_scope';
 
 export function registerAllBdComposites(): void {
   registerComposite(bdServiceAuthorizedPredicate);
   registerComposite(bdQueryPurposeMatchesPredicate);
+  registerComposite(bdDomainInScopePredicate);
 }
 
 registerAllBdComposites();
 
-export { bdServiceAuthorizedPredicate, bdQueryPurposeMatchesPredicate };
+export { bdServiceAuthorizedPredicate, bdQueryPurposeMatchesPredicate, bdDomainInScopePredicate };

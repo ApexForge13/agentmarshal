@@ -13,7 +13,7 @@
   "declared_scope": [
     {
       "rule_id": "trading-v1-base",
-      "description": "Trading-desk contract: gates the trade lifecycle (propose_trade, execute_trade, run_risk_check, fetch_research) for the TradingAgent / ResearchAgent / RiskAgent / ExecutionAgent fleet. The entity_not_sanctioned composite screens each action's counterparty/target entity against the OFAC SDN list supplied at runtime via action_properties.regulatory_state.ofac_sdn_list. PRE-scaffold: the composite returns an unresolved stub when the SDN list is not injected; the live OFAC SDN feed via Bright Data replaces the fixture-injected stub in a later workstream.",
+      "description": "Trading-desk contract: gates the trade lifecycle (propose_trade, execute_trade, run_risk_check, fetch_research) for the TradingAgent / ResearchAgent / RiskAgent / ExecutionAgent fleet. The entity_not_sanctioned composite screens each action's counterparty/target entity against the OFAC SDN list supplied at runtime via action_properties.regulatory_state.ofac_sdn_list. PRE-scaffold: the composite returns an unresolved stub when the SDN list is not injected; the live OFAC SDN feed via Bright Data replaces the fixture-injected stub in a later workstream. Beyond declared_scope, this contract's bd_permissions govern the Bright Data screening pipeline the fleet drives through the MCP proxy: counterparty adverse media via SERP, Web Unlocker (paywalled financial news), and the Crawl API (article extraction). Beneficial-owner registry lookups via the Scraping Browser are planned for a later bubble.",
       "match": {
         "subject": { "id": { "exists": true } },
         "action": { "name": { "in": ["propose_trade", "execute_trade", "run_risk_check", "fetch_research"] } }
@@ -52,6 +52,57 @@
         "max_cost_credits": 0.50,
         "response_handling": "fingerprint",
         "max_response_size_kb": 64
+      },
+      "composite_checks": ["bd_service_authorized", "bd_query_purpose_matches"],
+      "decision": "permit"
+    },
+    {
+      "rule_id": "adverse_media_unlock",
+      "description": "Web Unlocker bypass for paywalled financial news during adverse media review",
+      "match": {
+        "service": "web_unlocker",
+        "tool": "unlock_url",
+        "parameters": {
+          "purpose": { "equals": "adverse_media_unlock" },
+          "url": {
+            "domain_in": [
+              "*.reuters.com",
+              "*.bloomberg.com",
+              "*.ft.com",
+              "*.wsj.com",
+              "*.nytimes.com",
+              "*.theguardian.com",
+              "*.economist.com"
+            ]
+          }
+        }
+      },
+      "constraints": {
+        "max_calls_per_evaluation": 6,
+        "max_calls_per_minute": 30,
+        "max_cost_credits": 1.00,
+        "response_handling": "fingerprint",
+        "max_response_size_kb": 256
+      },
+      "composite_checks": ["bd_service_authorized", "bd_query_purpose_matches", "bd_domain_in_scope"],
+      "decision": "permit"
+    },
+    {
+      "rule_id": "adverse_media_extract",
+      "description": "Crawl API extraction of article content from SERP-discovered URLs for adverse media analysis",
+      "match": {
+        "service": "crawl_api",
+        "tool": "scrape_url",
+        "parameters": {
+          "purpose": { "equals": "adverse_media_extract" }
+        }
+      },
+      "constraints": {
+        "max_calls_per_evaluation": 8,
+        "max_calls_per_minute": 30,
+        "max_cost_credits": 1.50,
+        "response_handling": "fingerprint",
+        "max_response_size_kb": 512
       },
       "composite_checks": ["bd_service_authorized", "bd_query_purpose_matches"],
       "decision": "permit"

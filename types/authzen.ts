@@ -251,7 +251,8 @@ export type BDService =
   | 'web_scraper_api'
   | 'proxies'
   | 'scraper_studio'
-  | 'mcp_server';
+  | 'mcp_server'
+  | 'crawl_api';
 
 /**
  * Predicate over a single BD call parameter. At least one operator. Distinct from

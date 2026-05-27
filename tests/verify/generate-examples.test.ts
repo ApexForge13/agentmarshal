@@ -65,5 +65,16 @@ describe('verify example generation', () => {
     expect(review.record_type).toBe('compliance_receipt');
     expect(review.details?.review_required).toBe(true);
     expect(review.timestamp.status).toBe('unavailable');
+
+    // Bubble 17: a Compliance Receipt carrying one governed bd_call. The bd_call is
+    // part of the signed body, so a valid signature proves it is unmodified; it
+    // surfaces in the verdict details. Built without a timestamper → 'unavailable'.
+    const withBdCall = await verifyReceipt(examples.valid_with_bd_call);
+    expect(withBdCall.verified).toBe(true);
+    expect(withBdCall.record_type).toBe('compliance_receipt');
+    expect(withBdCall.details?.bd_calls).toHaveLength(1);
+    expect(withBdCall.details?.bd_calls?.[0].governance_result).toBe('permit');
+    expect(withBdCall.details?.bd_calls?.[0].response_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(withBdCall.timestamp.status).toBe('unavailable');
   });
 });

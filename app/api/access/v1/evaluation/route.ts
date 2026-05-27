@@ -23,8 +23,10 @@ import {
   isKnownAgentType,
   UNKNOWN_AGENT_TYPE_FALLBACK,
 } from '@/lib/access/emission-policy';
-// Side-effect imports: register all 38 composite predicates with the dispatch
-// registry (12 TCPA/CAN-SPAM real + 20 deferred stubs + 5 governance real + 1 trading real).
+// Side-effect imports: register all 40 composite predicates with the dispatch
+// registry (12 TCPA/CAN-SPAM real + 20 deferred stubs + 5 governance real + 1 trading real
+// + 2 BD-governance real). The BD composites run inside the MCP proxy's bd_permissions
+// evaluation (lib/mcp/govern.ts), but are registered here on the same registry.
 import '@/lib/compliance/predicates/tcpa';
 import '@/lib/compliance/predicates/canspam';
 import '@/lib/compliance/predicates/sourcing';
@@ -33,6 +35,7 @@ import '@/lib/compliance/predicates/voice';
 import '@/lib/compliance/predicates/sms';
 import '@/lib/compliance/predicates/governance';
 import '@/lib/compliance/predicates/trading';
+import '@/lib/compliance/predicates/bd';
 import type { AuthZenRequest, ScopeContract, EvaluationResult } from '@/types/authzen';
 import type { AgentType } from '@/lib/compliance/internal-audit/types';
 
@@ -131,6 +134,7 @@ async function emitSignedRecord(input: EmissionInput): Promise<EmittedRecord> {
       previousReceiptHash: null,
       issuedAt: input.issuedAt,
       signers: [{ handle, role: 'agentmarshal' }],
+      bdCalls: input.result.bd_calls,
       timestamper,
     });
     return { record_type: 'compliance_receipt', body: receipt as unknown as Record<string, unknown> };
@@ -167,6 +171,7 @@ async function emitSignedRecord(input: EmissionInput): Promise<EmittedRecord> {
     previousAuditHash: null,
     issuedAt: input.issuedAt,
     signers: [{ handle, role: 'agentmarshal' }],
+    bdCalls: input.result.bd_calls,
     timestamper,
   });
   return { record_type: 'internal_audit', body: internalAudit as unknown as Record<string, unknown> };

@@ -123,11 +123,13 @@ describe('Scope Contract loader (Bubble 7)', () => {
       expect(withType).toBe(single);
     });
 
-    it('instance-id miss + subject.type hit fires the fallback (TradingAgent → trading_v1)', async () => {
+    it('instance-id miss + subject.type hit fires the fallback (TradingAgent → trading_v2)', async () => {
       // trading-agent-001 is NOT a map key; TradingAgent IS. This is the exact
       // path the dashboard "Run demo sequence" drives through /api/access/v1/evaluation.
+      // Bubble 17 remapped TradingAgent → trading_v2 (the BD-MCP contract); the
+      // other three trading agents stay on trading_v1.
       const contract = await loadContractForAgent('trading-agent-001', 'TradingAgent');
-      expect(contract.contract_id).toBe('trading_v1');
+      expect(contract.contract_id).toBe('trading_v2');
     });
 
     it('instance-id miss + subject.type miss falls back to STUB_PERMISSIVE_ALLOW (unchanged)', async () => {

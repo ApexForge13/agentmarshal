@@ -329,5 +329,95 @@
       }
     ],
     "receipt_hash": "f797b95c0449ca171bb5fed97b3c350375a0e0d7490b48bd593ada752ec3239e"
+  },
+  "valid_with_bd_call": {
+    "record_type": "compliance_receipt",
+    "receipt_version": "0.1",
+    "schema_version": "0.1",
+    "receipt_id": "88888888-8888-4888-8888-888888888888",
+    "previous_receipt_hash": null,
+    "canonical_form": "rfc8785",
+    "issued_at": "2026-05-24T18:20:30.336Z",
+    "code_version": "agentmarshal-v0.2-bubble10",
+    "contract_id": "screening_v1",
+    "contract_version": "0.1",
+    "tenant_id": "default",
+    "agent_id": "screening-agent-001",
+    "evaluation_id": "99999999-9999-4999-8999-999999999999",
+    "request_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "decision": {
+      "effect": "allow",
+      "evaluation_path": "declared_scope",
+      "matched_rule_id": "screening-v1-base",
+      "reason_code": "SCREENING_V1_ALLOWED",
+      "reason": "Counterparty screening checks passed; adverse-media SERP screen recorded."
+    },
+    "predicate_evaluations": [
+      {
+        "rule_id": "screening-v1-base",
+        "predicate_path": "subject.id",
+        "constraint": {
+          "exists": true
+        },
+        "actual_value": "screening-agent-001",
+        "result": "pass",
+        "reason": "subject.id is present"
+      }
+    ],
+    "composite_evaluations": [
+      {
+        "predicate": "entity_adverse_media_check_v0",
+        "result": "pass",
+        "reason": "adverse-media SERP screen recorded for counterparty via the MCP proxy",
+        "details": {
+          "bd_call_recorded": true
+        }
+      }
+    ],
+    "bd_calls": [
+      {
+        "service": "serp_api",
+        "tool": "search_google",
+        "parameters": {
+          "query": "Acme Capital Partners sanctions OR fraud OR investigation",
+          "purpose": "adverse_media_screening"
+        },
+        "matched_rule_id": "adverse_media_serp",
+        "governance_result": "permit",
+        "composite_outcomes": [
+          {
+            "composite": "bd_service_authorized",
+            "result": "pass"
+          },
+          {
+            "composite": "bd_query_purpose_matches",
+            "result": "pass"
+          }
+        ],
+        "executed_at": "2026-05-24T18:20:30.336Z",
+        "duration_ms": 234,
+        "response_sha256": "91940ed1024b1adefa66f1d72d7dc5b75cc574f562bf9968c835505b61062e50",
+        "response_size_bytes": 4823,
+        "bd_request_id": "brd-fixture-0001"
+      }
+    ],
+    "regulatory_state": {
+      "hash": null,
+      "pending": true,
+      "snapshot_source": null,
+      "anchor_timestamp": null,
+      "anchor_method": "pending"
+    },
+    "signatures": [
+      {
+        "algorithm": "ed25519",
+        "key_id": "am-4FgvUVvFdHqy5mSta_Tyr3RjRO0P6Sk_yL2lGloxMgU",
+        "public_key_fingerprint": "8d7ec859d6e00ecabcad3474442b35cf39c528f7a29f56566989e8c436118fe5",
+        "signature": "f60593c96547630a1a683ab9cbf4b513fcc8a7881b09162654d61865aa8aa1d9a034574f581e00446cb0b89a5dfecf3fbabdd77cbe6fa808f43164c3bb5f350f",
+        "signed_at": "2026-05-24T18:20:30.336Z",
+        "signer_role": "agentmarshal"
+      }
+    ],
+    "receipt_hash": "9de771ce7d95fbec83bdc3059f50011b430778a024f0a972892e39d6dfee1ac8"
   }
 }

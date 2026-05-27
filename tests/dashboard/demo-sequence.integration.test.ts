@@ -59,7 +59,8 @@ describe('trading-desk demo sequence — production resolver path (Bubble 14)', 
       expect(body.record.signatures).toHaveLength(1);
 
       // Trading agents are outside the customer-touching set → Internal Audit.
-      // The contract id proves the subject.type fallback resolved trading_v1
+      // The contract id proves the subject.type fallback resolved the trading
+      // contracts (Bubble 17: TradingAgent → trading_v2, the rest → trading_v1)
       // rather than collapsing to the permissive stub.
       results.push({
         decision: body.decision === true ? 'permit' : 'deny',
@@ -70,7 +71,7 @@ describe('trading-desk demo sequence — production resolver path (Bubble 14)', 
 
     expect(results.map((r) => r.decision)).toEqual(['permit', 'permit', 'permit', 'deny']);
     expect(results.map((r) => r.contractId)).toEqual([
-      'trading_v1',
+      'trading_v2',
       'trading_v1',
       'trading_v1',
       'trading_v1',
@@ -97,5 +98,38 @@ describe('trading-desk demo sequence — production resolver path (Bubble 14)', 
     expect(composites[0].predicate).toBe('entity_not_sanctioned');
     expect(composites[0].result).toBe('fail');
     expect(composites[0].details.matched_entry).toBe('SYN-SDN-IRAN-MARITIME-001');
+  });
+
+  it('the propose_trade scenario records a governed bd_call in its Internal Audit record (Bubble 17)', async () => {
+    // Scenario 0 (TradingAgent → trading_v2) runs entity_adverse_media_check_v0, which
+    // makes a GOVERNED SERP call through the MCP proxy. With no BD token in the test
+    // env the proxy permits but does not execute (hermetic) — a governance-only bd_call
+    // is still recorded into the signed Internal Audit record.
+    const scenarios = loadDemoScenarios();
+    const proposeTrade = scenarios[0];
+    expect(proposeTrade.request.subject.type).toBe('TradingAgent');
+
+    const response = await POST(makeRequest(proposeTrade.request));
+    const body = await response.json();
+
+    expect(body.decision).toBe(true); // clean counterparty → permit
+    expect(body.record.record_type).toBe('internal_audit');
+    expect(body.record.contract.id).toBe('trading_v2');
+
+    const composites = body.record.evaluation.composite_evaluations.map(
+      (c: { predicate: string }) => c.predicate,
+    );
+    expect(composites).toContain('entity_adverse_media_check_v0');
+
+    expect(body.record.bd_calls).toHaveLength(1);
+    const bdCall = body.record.bd_calls[0];
+    expect(bdCall.service).toBe('serp_api');
+    expect(bdCall.tool).toBe('search_google');
+    expect(bdCall.governance_result).toBe('permit');
+    expect(bdCall.matched_rule_id).toBe('adverse_media_serp');
+    expect(bdCall.composite_outcomes).toEqual([
+      { composite: 'bd_service_authorized', result: 'pass' },
+      { composite: 'bd_query_purpose_matches', result: 'pass' },
+    ]);
   });
 });

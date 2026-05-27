@@ -1,0 +1,60 @@
+{
+  "scope_contract_version": "0.1",
+  "contract_id": "trading_v2",
+  "agent_id": "agentmarshal:contract/trading_v2",
+  "issuer": {
+    "type": "system",
+    "id": "agentmarshal:seed",
+    "display_name": "AgentMarshal seed contracts (v0.2 Bubble 17 — BD MCP proxy)"
+  },
+  "issued_at": "2026-05-26T00:00:00Z",
+  "supersedes": "trading_v1",
+  "version": 2,
+  "declared_scope": [
+    {
+      "rule_id": "trading-v1-base",
+      "description": "Trading-desk contract: gates the trade lifecycle (propose_trade, execute_trade, run_risk_check, fetch_research) for the TradingAgent / ResearchAgent / RiskAgent / ExecutionAgent fleet. The entity_not_sanctioned composite screens each action's counterparty/target entity against the OFAC SDN list supplied at runtime via action_properties.regulatory_state.ofac_sdn_list. PRE-scaffold: the composite returns an unresolved stub when the SDN list is not injected; the live OFAC SDN feed via Bright Data replaces the fixture-injected stub in a later workstream.",
+      "match": {
+        "subject": { "id": { "exists": true } },
+        "action": { "name": { "in": ["propose_trade", "execute_trade", "run_risk_check", "fetch_research"] } }
+      },
+      "composite_checks": [
+        {
+          "predicate": "entity_not_sanctioned",
+          "input": {}
+        },
+        {
+          "predicate": "entity_adverse_media_check_v0",
+          "input": {}
+        }
+      ],
+      "decision": {
+        "effect": "allow",
+        "reason_code": "TRADING_V1_ALLOWED",
+        "reason": "Trading desk v1 composite checks passed; entity not on the injected OFAC SDN list."
+      }
+    }
+  ],
+  "bd_permissions": [
+    {
+      "rule_id": "adverse_media_serp",
+      "description": "SERP search for counterparty adverse news on financial-crime keywords",
+      "match": {
+        "service": "serp_api",
+        "tool": "search_google",
+        "parameters": {
+          "purpose": { "equals": "adverse_media_screening" }
+        }
+      },
+      "constraints": {
+        "max_calls_per_evaluation": 4,
+        "max_calls_per_minute": 30,
+        "max_cost_credits": 0.50,
+        "response_handling": "fingerprint",
+        "max_response_size_kb": 64
+      },
+      "composite_checks": ["bd_service_authorized", "bd_query_purpose_matches"],
+      "decision": "permit"
+    }
+  ]
+}

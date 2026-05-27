@@ -10,7 +10,8 @@
 import { buildReceipt } from '@/lib/compliance/receipt/builder';
 import { buildInternalAuditRecord } from '@/lib/compliance/internal-audit/builder';
 import { FileKeyProvider } from '@/lib/compliance/keys/file-provider';
-import type { EvaluationResult } from '@/types/authzen';
+import { sha256Hex } from '@/lib/compliance/receipt/hash';
+import type { EvaluationResult, BDCallAudit } from '@/types/authzen';
 import type { Timestamper } from '@/lib/compliance/timestamp/types';
 
 // issued_at / signed_at are NO LONGER hardcoded: they are sourced from the gated
@@ -30,6 +31,10 @@ const FIXED = {
   reviewReceiptId: '55555555-5555-4555-8555-555555555555',
   reviewEvaluationId: '66666666-6666-4666-8666-666666666666',
   reviewRequestId: '77777777-7777-4777-8777-777777777777',
+  // Bubble 17 bd_calls fixture — distinct ids again.
+  bdCallReceiptId: '88888888-8888-4888-8888-888888888888',
+  bdCallEvaluationId: '99999999-9999-4999-8999-999999999999',
+  bdCallRequestId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
 };
 
 // voice-001 consent-revoked deny: the consent composite fails, the 3 Bubble-3
@@ -144,12 +149,44 @@ const PERSONALIZER_ALLOW: EvaluationResult = {
   composite_evaluations: [],
 };
 
+// Bubble 17: a counterparty-screening allow whose evaluation ran one governed
+// Bright Data SERP adverse-media call. The bd_call rides the signed body (see
+// buildReceipt bdCalls) so verifyReceipt surfaces it and tampering breaks the sig.
+const ADVERSE_MEDIA_ALLOW: EvaluationResult = {
+  effect: 'allow',
+  evaluation_path: 'declared_scope',
+  matched_rule_id: 'screening-v1-base',
+  out_of_scope_term: null,
+  reason_code: 'SCREENING_V1_ALLOWED',
+  reason: 'Counterparty screening checks passed; adverse-media SERP screen recorded.',
+  predicate_evaluations: [
+    {
+      rule_id: 'screening-v1-base',
+      predicate_path: 'subject.id',
+      constraint: { exists: true },
+      actual_value: 'screening-agent-001',
+      result: 'pass',
+      reason: 'subject.id is present',
+    },
+  ],
+  composite_evaluations: [
+    {
+      predicate: 'entity_adverse_media_check_v0',
+      result: 'pass',
+      reason: 'adverse-media SERP screen recorded for counterparty via the MCP proxy',
+      details: { bd_call_recorded: true },
+    },
+  ],
+};
+
 export interface VerifyExamples {
   valid_compliance: Record<string, unknown>;
   valid_internal_audit: Record<string, unknown>;
   tampered_compliance: Record<string, unknown>;
   // Bubble 16: a signature-valid Compliance Receipt in the three-state review hold.
   valid_review: Record<string, unknown>;
+  // Bubble 17: a signature-valid Compliance Receipt carrying one governed bd_call.
+  valid_with_bd_call: Record<string, unknown>;
 }
 
 export interface BuildExamplesOptions {
@@ -227,6 +264,46 @@ export async function buildExamples({
   });
   const valid_review = { record_type: 'compliance_receipt', ...reviewReceipt };
 
+  // Bubble 17: a Compliance Receipt carrying one governed bd_call. No timestamper
+  // (like valid_review) so it stays independent of the captured FreeTSA tokens.
+  // executed_at is pinned to issued_at for determinism; response_sha256 is a real
+  // sha256 of fixed bytes so it satisfies the schema's hex pattern.
+  const bdCall: BDCallAudit = {
+    service: 'serp_api',
+    tool: 'search_google',
+    parameters: {
+      query: 'Acme Capital Partners sanctions OR fraud OR investigation',
+      purpose: 'adverse_media_screening',
+    },
+    matched_rule_id: 'adverse_media_serp',
+    governance_result: 'permit',
+    composite_outcomes: [
+      { composite: 'bd_service_authorized', result: 'pass' },
+      { composite: 'bd_query_purpose_matches', result: 'pass' },
+    ],
+    executed_at: issuedAt.toISOString(),
+    duration_ms: 234,
+    response_sha256: sha256Hex(Buffer.from('agentmarshal-bubble17-fixture-serp-response', 'utf-8')),
+    response_size_bytes: 4823,
+    bd_request_id: 'brd-fixture-0001',
+  };
+  const bdReceipt = await buildReceipt({
+    evaluationResult: ADVERSE_MEDIA_ALLOW,
+    tenantId: 'default',
+    agentId: 'screening-agent-001',
+    contractId: 'screening_v1',
+    contractVersion: '0.1',
+    evaluationId: FIXED.bdCallEvaluationId,
+    requestId: FIXED.bdCallRequestId,
+    codeVersion: FIXED.codeVersion,
+    previousReceiptHash: null,
+    issuedAt,
+    receiptId: FIXED.bdCallReceiptId,
+    signers: [{ handle, role: 'agentmarshal', signedAt }],
+    bdCalls: [bdCall],
+  });
+  const valid_with_bd_call = { record_type: 'compliance_receipt', ...bdReceipt };
+
   // Tamper: flip the signed decision from deny → permit AFTER signing. The
   // signature was computed over the 'deny' body, so verification must fail.
   const tampered_compliance = structuredClone(valid_compliance) as Record<string, unknown>;
@@ -235,5 +312,5 @@ export async function buildExamples({
   tamperedDecision.reason_code = 'TAMPERED_TO_PERMIT';
   tamperedDecision.reason = 'decision field altered after signing (tamper demo)';
 
-  return { valid_compliance, valid_internal_audit, tampered_compliance, valid_review };
+  return { valid_compliance, valid_internal_audit, tampered_compliance, valid_review, valid_with_bd_call };
 }

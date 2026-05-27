@@ -26,7 +26,7 @@ import type {
   RegulatoryStateAnchor,
   SignerRole,
 } from './types';
-import type { EvaluationResult } from '@/types/authzen';
+import type { EvaluationResult, BDCallAudit } from '@/types/authzen';
 import type { SigningHandle } from '@/lib/compliance/keys/provider';
 import type { Timestamper } from '@/lib/compliance/timestamp/types';
 
@@ -63,6 +63,11 @@ export interface BuildReceiptInput {
   issuedAt?: Date;
   receiptId?: string;
   signers: Array<{ handle: SigningHandle; role: SignerRole; signedAt?: Date }>;
+  // Bubble 17: optional governed Bright Data call audit entries. When non-empty,
+  // a bd_calls array is added to the SIGNED body (so tampering with it after
+  // signing breaks the signature). Omit / empty ⇒ no bd_calls field, keeping
+  // pre-Bubble-17 receipts byte-identical.
+  bdCalls?: BDCallAudit[];
   // Optional RFC 3161 timestamper. When provided, the finished receipt_hash is
   // submitted to the TSA and the token attached as timestamp_token. Omit to skip
   // external timestamping entirely (the default — no network, no field added).
@@ -118,6 +123,9 @@ export async function buildReceipt(input: BuildReceiptInput): Promise<Compliance
       : {}),
     predicate_evaluations: er.predicate_evaluations,
     composite_evaluations: er.composite_evaluations ?? [],
+    // Bubble 17: only emit bd_calls when present. JCS sorts keys, so absence
+    // reproduces pre-Bubble-17 bytes exactly — existing signed receipts verify unchanged.
+    ...(input.bdCalls && input.bdCalls.length > 0 ? { bd_calls: input.bdCalls } : {}),
     regulatory_state: regulatoryState,
   };
 

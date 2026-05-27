@@ -129,6 +129,12 @@
       "$ref": "#/$defs/EscalationConfig"
     },
 
+    "bd_permissions": {
+      "description": "Optional ordered list of Bright Data (BD) call-authorization rules. Consulted ONLY by the AgentMarshal MCP proxy when an agent governed by this contract attempts a BD tool call; the declared_scope evaluator ignores this field. Semantics mirror declared_scope — first matching rule wins — but over a {service, tool, parameters} BD-call shape rather than an AuthZEN request. A rule fires when its 'match' predicate holds AND every named composite_check returns pass; the first such rule's 'permit' decision authorizes the call. No matching+passing rule ⇒ implicit deny. Absent ⇒ deny-all for BD calls (the agent is authorized for no BD service).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/BDPermissionRule" }
+    },
+
     "extensions": {
       "description": "Reserved namespaces for protocol-specific or tenant-specific extensions. Implementations MUST validate known namespaces against their schemas and MAY ignore unknown namespaces.",
       "type": "object",
@@ -396,6 +402,90 @@
           "minimum": 1,
           "description": "Maximum acceptable lifetime of the agent's WIMSE credentials. Credentials older than this MUST be rejected."
         }
+      },
+      "additionalProperties": false
+    },
+
+    "BDPermissionRule": {
+      "description": "A single Bright Data call-authorization rule consulted by the MCP proxy. 'match' is a predicate over a {service, tool, parameters} BD-call shape; 'composite_checks' names composite predicates that must all pass; 'decision' is 'permit' when match holds and all composites pass. Note: composite_checks here is a plain string array of composite ids (the bd_call shape is threaded to each composite via action_properties at govern time) — deliberately simpler than declared_scope's CompositeCheck objects.",
+      "type": "object",
+      "required": ["rule_id", "match", "decision"],
+      "properties": {
+        "rule_id": {
+          "description": "Stable identifier for this rule within the contract. Surfaced in audit records (matched_rule_id) and operator review.",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "description": "Human-readable purpose of this BD permission.",
+          "type": "string"
+        },
+        "match": {
+          "description": "Predicate over the incoming BD call. 'service' is required; 'tool' and per-parameter predicates are optional further constraints.",
+          "type": "object",
+          "required": ["service"],
+          "properties": {
+            "service": {
+              "description": "Bright Data service this rule authorizes.",
+              "type": "string",
+              "enum": ["serp_api", "web_unlocker", "scraping_browser", "web_scraper_api", "proxies", "scraper_studio", "mcp_server"]
+            },
+            "tool": {
+              "description": "Service-specific tool name (e.g. 'search_google' for serp_api). Omit to match any tool of the service.",
+              "type": "string",
+              "minLength": 1
+            },
+            "parameters": {
+              "description": "Per-parameter predicates over the BD call parameters. Keys are parameter names; values are operator objects.",
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/BDParameterPredicate" }
+            }
+          },
+          "additionalProperties": false
+        },
+        "constraints": { "$ref": "#/$defs/BDConstraints" },
+        "composite_checks": {
+          "description": "Names of composite predicates (registered via registerComposite) that must all return pass for this rule to fire. Plain string ids; input is the bd_call shape supplied via action_properties at govern time.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "decision": {
+          "description": "Outcome when match holds and all composite_checks pass. Only 'permit' is meaningful; denial is implicit (no matching+passing rule).",
+          "type": "string",
+          "enum": ["permit"]
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "BDParameterPredicate": {
+      "description": "A predicate over a single BD call parameter. Operator object with at least one operator. Distinct from the AuthZEN Predicate vocabulary: adds domain_in (URL-hostname match) and uses 'matches' for regex rather than 'pattern'.",
+      "type": "object",
+      "properties": {
+        "equals": { "description": "Parameter value === this literal." },
+        "in": { "type": "array", "description": "Parameter value must be in this set." },
+        "exists": { "type": "boolean", "description": "True: parameter MUST be present. False: MUST be absent." },
+        "matches": { "type": "string", "description": "Regex (ECMA 262) the string parameter value must match. Use sparingly." },
+        "domain_in": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "URL parameter's hostname must match one of these domain patterns ('*.reuters.com' style)."
+        }
+      },
+      "minProperties": 1,
+      "additionalProperties": false
+    },
+
+    "BDConstraints": {
+      "description": "Optional per-rule operational constraints on the authorized BD calls. Bubble 17 records these in the contract; runtime enforcement of rate/cost ceilings lands in a later bubble.",
+      "type": "object",
+      "properties": {
+        "max_calls_per_evaluation": { "type": "integer", "minimum": 1 },
+        "max_calls_per_minute": { "type": "integer", "minimum": 1 },
+        "max_cost_credits": { "type": "number", "minimum": 0 },
+        "response_handling": { "type": "string", "enum": ["fingerprint", "cache", "no_cache", "pii_scrub"] },
+        "max_response_size_kb": { "type": "integer", "minimum": 1 }
       },
       "additionalProperties": false
     }

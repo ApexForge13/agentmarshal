@@ -25,6 +25,7 @@ import type {
   EntityPredicate,
   OutOfScopeEntry,
   ScopeContractEffect,
+  BDCallAudit,
 } from '@/types/authzen';
 
 export interface EvaluateOptions {
@@ -45,6 +46,8 @@ export async function evaluateRequest(
 ): Promise<EvaluationResult> {
   const now = options.now ?? new Date();
   const predicateContext: PredicateContext = { now };
+  // Bubble 17: collector for BD calls a composite makes through the MCP proxy.
+  const collectedBdCalls: BDCallAudit[] = [];
   const evalContext: EvalContext = {
     now,
     tenant_id: options.tenant_id ?? contract.tenant_id ?? 'default',
@@ -52,6 +55,8 @@ export async function evaluateRequest(
     request_id: options.request_id ?? randomUUID(),
     audit: options.audit ?? NULL_EMITTER,
     action_properties: request.action.properties,
+    subject: { id: request.subject.id, type: request.subject.type },
+    bd_calls: collectedBdCalls,
   };
 
   // Phase 1: Temporal
@@ -109,6 +114,7 @@ export async function evaluateRequest(
       reason: rule.decision.reason || '',
       predicate_evaluations: allPredicateEvals,
       composite_evaluations: allCompositeEvals.length > 0 ? allCompositeEvals : undefined,
+      bd_calls: collectedBdCalls.length > 0 ? collectedBdCalls : undefined,
       ...reviewFieldsFor(rule.decision.effect, allCompositeEvals),
     };
   }
@@ -123,6 +129,7 @@ export async function evaluateRequest(
     reason: 'No declared_scope rule matched; implicit deny per Scope Contract semantics.',
     predicate_evaluations: allPredicateEvals,
     composite_evaluations: allCompositeEvals.length > 0 ? allCompositeEvals : undefined,
+    bd_calls: collectedBdCalls.length > 0 ? collectedBdCalls : undefined,
     ...reviewFieldsFor('deny', allCompositeEvals),
   };
 }

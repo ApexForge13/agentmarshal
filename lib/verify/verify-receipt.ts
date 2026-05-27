@@ -15,6 +15,7 @@ import { canonicalize } from '@/lib/compliance/receipt/canonical';
 import { verify as verifyEd25519 } from '@/lib/compliance/receipt/verify';
 import { verifyTimestampToken } from '@/lib/compliance/timestamp/verify-timestamp';
 import type { TimestampResult } from '@/lib/compliance/timestamp/types';
+import type { BDCallAudit } from '@/types/authzen';
 import { loadPublicKey } from './load-public-key';
 
 export type RecordTypeDiscriminant = 'compliance_receipt' | 'internal_audit' | 'unknown';
@@ -30,6 +31,10 @@ export interface VerifyDetails {
   // records (the field is absent). The field is part of the signed bytes, so a
   // tampered review_required flips the signature verdict — no separate check needed.
   review_required: boolean;
+  // Bubble 17: governed Bright Data calls captured in the signed body, surfaced for
+  // display. Like every signed field, a tampered bd_call flips the signature verdict —
+  // no separate check needed. Absent ⇒ omitted (pre-Bubble-17 records have none).
+  bd_calls?: BDCallAudit[];
 }
 
 export interface VerifyResult {
@@ -104,6 +109,8 @@ function asStringArray(v: unknown): string[] {
 }
 
 function extractDetails(recordType: RecordTypeDiscriminant, obj: Obj): VerifyDetails {
+  // bd_calls (Bubble 17) sits at the top level of both record types' signed bodies.
+  const bd_calls = Array.isArray(obj.bd_calls) ? (obj.bd_calls as unknown as BDCallAudit[]) : undefined;
   if (recordType === 'internal_audit') {
     const agent = isObject(obj.agent) ? obj.agent : {};
     const evaluation = isObject(obj.evaluation) ? obj.evaluation : {};
@@ -116,6 +123,7 @@ function extractDetails(recordType: RecordTypeDiscriminant, obj: Obj): VerifyDet
       previous_receipt_hash:
         typeof obj.previous_audit_hash === 'string' ? obj.previous_audit_hash : null,
       review_required: obj.review_required === true,
+      ...(bd_calls ? { bd_calls } : {}),
     };
   }
   const decision = isObject(obj.decision) ? obj.decision : {};
@@ -127,6 +135,7 @@ function extractDetails(recordType: RecordTypeDiscriminant, obj: Obj): VerifyDet
     previous_receipt_hash:
       typeof obj.previous_receipt_hash === 'string' ? obj.previous_receipt_hash : null,
     review_required: obj.review_required === true,
+    ...(bd_calls ? { bd_calls } : {}),
   };
 }
 

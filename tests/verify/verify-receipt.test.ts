@@ -46,6 +46,23 @@ describe('verifyReceipt (Bubble 10)', () => {
     expect(bad.reason).toMatch(/signature mismatch/i);
   });
 
+  it('verifies a Compliance Receipt with a governed bd_call; bd_calls is in the signed body (Bubble 17)', async () => {
+    const r = await verifyReceipt(examples.valid_with_bd_call);
+    expect(r.verified).toBe(true);
+    expect(r.record_type).toBe('compliance_receipt');
+    expect(r.details!.bd_calls).toHaveLength(1);
+    expect(r.details!.bd_calls![0].governance_result).toBe('permit');
+    expect(r.details!.bd_calls![0].matched_rule_id).toBe('adverse_media_serp');
+    // Tampering the response fingerprint after signing must break the signature —
+    // bd_calls is part of the signed bytes, so no separate trust path is needed.
+    const forged = structuredClone(examples.valid_with_bd_call) as Record<string, unknown>;
+    (forged.bd_calls as Array<Record<string, unknown>>)[0].response_sha256 =
+      '0000000000000000000000000000000000000000000000000000000000000000';
+    const bad = await verifyReceipt(forged);
+    expect(bad.verified).toBe(false);
+    expect(bad.reason).toMatch(/signature mismatch/i);
+  });
+
   it('existing fixtures carry no review flag (backward-compatible: review_required false)', async () => {
     const r = await verifyReceipt(examples.valid_compliance);
     expect(r.details!.review_required).toBe(false);

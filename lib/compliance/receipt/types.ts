@@ -1,7 +1,7 @@
 // ComplianceReceipt v0.1 types — TS mirror of spec/v0.1/compliance-receipt.schema.json.
 // The JSON Schema is the normative source; this file MUST stay structurally aligned.
 
-import type { PredicateEvaluation } from '@/types/authzen';
+import type { PredicateEvaluation, BDCallAudit } from '@/types/authzen';
 import type { CompositePredicateEvaluation } from '@/lib/authzen/composite-dispatch';
 import type { TimestampToken } from '@/lib/compliance/timestamp/types';
 
@@ -62,6 +62,11 @@ export interface ComplianceReceipt {
 
   predicate_evaluations: PredicateEvaluation[];
   composite_evaluations: CompositePredicateEvaluation[];
+
+  // Bubble 17 (OPTIONAL, backward-compatible). Audit entries for governed Bright
+  // Data calls made during this evaluation. Included in the signed body when
+  // present; omitted otherwise, so every pre-Bubble-17 receipt stays byte-identical.
+  bd_calls?: BDCallAudit[];
 
   regulatory_state: RegulatoryStateAnchor;
   signatures: ReceiptSignature[];

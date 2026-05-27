@@ -5,7 +5,7 @@
 // shapes are byte-identical with Compliance Receipts and are re-imported from
 // lib/compliance/receipt/types to keep the crypto substrate single-source.
 
-import type { PredicateEvaluation } from '@/types/authzen';
+import type { PredicateEvaluation, BDCallAudit } from '@/types/authzen';
 import type { CompositePredicateEvaluation } from '@/lib/authzen/composite-dispatch';
 import type {
   ReceiptSignature,
@@ -87,6 +87,11 @@ export interface InternalAuditRecord {
   // byte-identical. Mirrors ComplianceReceipt.
   review_required?: boolean;
   review_reason?: string;
+
+  // Bubble 17 (OPTIONAL, backward-compatible). Audit entries for governed Bright
+  // Data calls made during this evaluation. Signed when present; omitted keeps
+  // pre-Bubble-17 records byte-identical. Mirrors ComplianceReceipt.
+  bd_calls?: BDCallAudit[];
 
   regulatory_state: RegulatoryStateAnchor;
   signatures: AuditRecordSignature[];

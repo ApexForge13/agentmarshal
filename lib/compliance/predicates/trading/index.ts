@@ -10,11 +10,14 @@
 
 import { registerComposite } from '@/lib/authzen/composite-dispatch';
 import { entityNotSanctionedPredicate } from './entity-not-sanctioned';
+import { entityAdverseMediaCheckPredicate } from './entity-adverse-media-check';
 
 export function registerAllTradingComposites(): void {
   registerComposite(entityNotSanctionedPredicate);
+  // Bubble 17: makes a governed BD SERP call through the MCP proxy during evaluation.
+  registerComposite(entityAdverseMediaCheckPredicate);
 }
 
 registerAllTradingComposites();
 
-export { entityNotSanctionedPredicate };
+export { entityNotSanctionedPredicate, entityAdverseMediaCheckPredicate };

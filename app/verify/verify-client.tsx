@@ -12,12 +12,14 @@ import { useEffect, useState } from 'react';
 import type { PublicKeyInfo } from '@/lib/verify/load-public-key';
 import type { VerifyResult } from '@/lib/verify/verify-receipt';
 import type { TimestampResult } from '@/lib/compliance/timestamp/types';
+import type { BDCallAudit } from '@/types/authzen';
 import { VERIFY_HANDOFF_KEY } from '@/lib/verify/handoff';
 
 interface Examples {
   valid_compliance: unknown;
   valid_internal_audit: unknown;
   tampered_compliance: unknown;
+  valid_with_bd_call: unknown;
 }
 
 interface Props {
@@ -136,6 +138,9 @@ export function VerifyClient({ publicKey, examples }: Props) {
         <button type="button" className="btn ghost" onClick={() => loadExample('valid_internal_audit')}>
           Load internal-audit example
         </button>
+        <button type="button" className="btn ghost" onClick={() => loadExample('valid_with_bd_call')}>
+          Load bd_call example
+        </button>
       </div>
 
       {error && (
@@ -204,8 +209,47 @@ function ResultPanel({ result }: { result: VerifyResult }) {
             />
           </>
         )}
+        {result.details?.bd_calls && result.details.bd_calls.length > 0 && (
+          <BdCallsBlock calls={result.details.bd_calls} />
+        )}
         <TimestampBlock ts={result.timestamp} />
       </div>
+    </div>
+  );
+}
+
+// Bubble 17: governed Bright Data calls captured in the signed body. Read-only —
+// like every signed field, tampering with a bd_call flips the signature verdict.
+function BdCallsBlock({ calls }: { calls: BDCallAudit[] }) {
+  return (
+    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={SECTION_LABEL}>Bright Data calls</span>
+        <span className="badge neutral">{calls.length}</span>
+      </div>
+      {calls.map((c, i) => (
+        <div key={i} style={{ marginBottom: i < calls.length - 1 ? 12 : 0 }}>
+          <Kv k="service / tool" v={`${c.service} · ${c.tool}`} />
+          <Kv
+            k="governance"
+            v={
+              c.matched_rule_id
+                ? `${c.governance_result} (rule ${c.matched_rule_id})`
+                : c.governance_result
+            }
+          />
+          <Kv
+            k="composite_outcomes"
+            v={
+              c.composite_outcomes.length > 0
+                ? c.composite_outcomes.map((o) => `${o.composite}=${o.result}`).join(', ')
+                : '(none)'
+            }
+          />
+          {c.response_sha256 && <Kv k="response_sha256" v={c.response_sha256} />}
+          {c.bd_request_id && <Kv k="bd_request_id" v={c.bd_request_id} />}
+        </div>
+      ))}
     </div>
   );
 }

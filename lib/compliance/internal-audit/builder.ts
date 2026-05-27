@@ -28,7 +28,7 @@ import type {
   SignerRole,
 } from './types';
 import type { RegulatoryStateAnchor } from '@/lib/compliance/receipt/types';
-import type { EvaluationResult } from '@/types/authzen';
+import type { EvaluationResult, BDCallAudit } from '@/types/authzen';
 import type { SigningHandle } from '@/lib/compliance/keys/provider';
 import type { Timestamper } from '@/lib/compliance/timestamp/types';
 
@@ -48,6 +48,10 @@ export interface BuildInternalAuditRecordInput {
   issuedAt?: Date;
   recordId?: string;
   signers: Array<{ handle: SigningHandle; role: SignerRole; signedAt?: Date }>;
+  // Bubble 17: optional governed Bright Data call audit entries, added to the
+  // SIGNED body when non-empty. Omit / empty ⇒ no bd_calls field (byte-identical
+  // with pre-Bubble-17 records). Mirrors buildReceipt.
+  bdCalls?: BDCallAudit[];
   // Optional RFC 3161 timestamper over audit_hash. See buildReceipt for semantics.
   timestamper?: Timestamper;
 }
@@ -109,6 +113,8 @@ export async function buildInternalAuditRecord(
           ...(er.review_reason !== undefined ? { review_reason: er.review_reason } : {}),
         }
       : {}),
+    // Bubble 17: only emit bd_calls when present (byte-identical otherwise).
+    ...(input.bdCalls && input.bdCalls.length > 0 ? { bd_calls: input.bdCalls } : {}),
     regulatory_state: regulatoryState,
   };
 

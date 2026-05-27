@@ -144,6 +144,12 @@
       "items": { "$ref": "#/$defs/CompositePredicateEvaluation" }
     },
 
+    "bd_calls": {
+      "description": "OPTIONAL (Bubble 17). Ordered audit entries for governed Bright Data tool calls made during this evaluation via the AgentMarshal MCP proxy. Absent ⇒ no BD calls (backward-compatible; pre-Bubble-17 receipts omit it). Part of the signed body, so tampering with any bd_call breaks the signature — no separate verification step required.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/BDCallAudit" }
+    },
+
     "regulatory_state": {
       "description": "Anchor that ties this receipt to a point-in-time snapshot of external regulatory data (e.g., DNC registry, state quiet-hours tables). When 'pending' is true, no anchor was available; Bright Data integration day populates real anchors.",
       "type": "object",
@@ -248,6 +254,66 @@
           "description": "Open trace bag from the composite predicate. Schema permits arbitrary keys to keep predicate authors unconstrained.",
           "type": "object",
           "additionalProperties": true
+        }
+      }
+    },
+
+    "BDCallAudit": {
+      "description": "Audit record of one governed Bright Data call captured into the receipt. Execution fields (executed_at, duration_ms, response_sha256, response_size_bytes, bd_request_id) are null when the call was denied (never executed) or when execution failed before a response was captured.",
+      "type": "object",
+      "required": [
+        "service", "tool", "parameters", "matched_rule_id", "governance_result",
+        "composite_outcomes", "executed_at", "duration_ms", "response_sha256",
+        "response_size_bytes", "bd_request_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "service": {
+          "description": "Bright Data service the call targeted.",
+          "type": "string",
+          "enum": ["serp_api", "web_unlocker", "scraping_browser", "web_scraper_api", "proxies", "scraper_studio", "mcp_server"]
+        },
+        "tool": { "description": "Service-specific tool name (e.g. 'search_google').", "type": "string", "minLength": 1 },
+        "parameters": { "description": "The call parameters as governed.", "type": "object", "additionalProperties": true },
+        "matched_rule_id": {
+          "description": "rule_id of the bd_permissions rule that governed the call; null when no rule matched (deny).",
+          "type": ["string", "null"]
+        },
+        "governance_result": {
+          "description": "MCP-proxy governance decision for the call.",
+          "type": "string",
+          "enum": ["permit", "deny"]
+        },
+        "composite_outcomes": {
+          "description": "Outcomes of the bd_permissions rule's composite checks, in order.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/BDCompositeOutcome" }
+        },
+        "executed_at": {
+          "description": "ISO 8601 UTC time the BD call was executed; null when denied/not executed.",
+          "oneOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }]
+        },
+        "duration_ms": { "description": "BD call wall-clock duration in ms; null when not executed.", "type": ["number", "null"] },
+        "response_sha256": {
+          "description": "SHA-256 hex of the raw BD response body (fingerprint); null when no response captured.",
+          "oneOf": [{ "type": "string", "pattern": "^[a-f0-9]{64}$" }, { "type": "null" }]
+        },
+        "response_size_bytes": { "description": "Byte length of the raw BD response; null when no response captured.", "type": ["integer", "null"] },
+        "bd_request_id": { "description": "Bright Data's own request id for cross-referencing; null when unavailable.", "type": ["string", "null"] }
+      }
+    },
+
+    "BDCompositeOutcome": {
+      "description": "Outcome of one composite check run during BD-call governance.",
+      "type": "object",
+      "required": ["composite", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "composite": { "description": "Registered composite predicate name.", "type": "string", "minLength": 1 },
+        "result": {
+          "description": "Composite result. 'pass' is allowable; 'fail', 'stub', and 'review' block the rule.",
+          "type": "string",
+          "enum": ["pass", "fail", "stub", "review"]
         }
       }
     },

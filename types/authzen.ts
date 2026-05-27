@@ -74,6 +74,12 @@ export interface EvaluationResult {
    */
   review_required?: boolean;
   review_reason?: string;
+  /**
+   * Bubble 17: audit entries for Bright Data calls made through the MCP proxy
+   * during this evaluation (e.g. by entity_adverse_media_check_v0). Flows to the
+   * signed record's bd_calls[]. Omitted when no BD call was made.
+   */
+  bd_calls?: BDCallAudit[];
 }
 
 /** Per-predicate evaluation record — matches audit-record schema PredicateEvaluation $def. */
@@ -164,6 +170,13 @@ export interface ScopeContract {
   out_of_scope?: OutOfScopeEntry[];
   escalation?: EscalationConfig;
   extensions?: Record<string, unknown>;
+  /**
+   * Bubble 17: optional Bright Data call-authorization rules. Consulted ONLY by
+   * the MCP proxy (lib/mcp/govern.ts) when an agent governed by this contract
+   * attempts a BD tool call; the declared_scope evaluator ignores this field.
+   * Absent ⇒ deny-all for BD calls.
+   */
+  bd_permissions?: BDPermissionRule[];
 }
 
 export type OutOfScopeEntry =
@@ -225,4 +238,87 @@ export interface EscalationTarget {
   address: string;
   timeout_seconds?: number;
   on_timeout?: 'deny' | 'allow' | 'escalate_again';
+}
+
+// === Bubble 17: Bright Data (BD) call-authorization permissions ===
+// Consulted by the MCP proxy (lib/mcp/govern.ts), NOT by the declared_scope
+// evaluator. Mirrors scope-contract.schema.json $defs BDPermissionRule.
+
+export type BDService =
+  | 'serp_api'
+  | 'web_unlocker'
+  | 'scraping_browser'
+  | 'web_scraper_api'
+  | 'proxies'
+  | 'scraper_studio'
+  | 'mcp_server';
+
+/**
+ * Predicate over a single BD call parameter. At least one operator. Distinct from
+ * PredicateOperators (the declared_scope vocabulary): adds `domain_in` (URL-hostname
+ * match) and uses `matches` for regex rather than `pattern`.
+ */
+export interface BDParameterPredicate {
+  equals?: unknown;
+  in?: unknown[];
+  exists?: boolean;
+  matches?: string;
+  domain_in?: string[];
+}
+
+export interface BDPermissionMatch {
+  service: BDService;
+  tool?: string;
+  parameters?: Record<string, BDParameterPredicate>;
+}
+
+export interface BDConstraints {
+  max_calls_per_evaluation?: number;
+  max_calls_per_minute?: number;
+  max_cost_credits?: number;
+  response_handling?: 'fingerprint' | 'cache' | 'no_cache' | 'pii_scrub';
+  max_response_size_kb?: number;
+}
+
+/**
+ * A single Bright Data call-authorization rule. The first rule whose `match`
+ * predicate holds AND whose `composite_checks` all pass fires its `permit`
+ * decision; no matching+passing rule ⇒ implicit deny.
+ */
+export interface BDPermissionRule {
+  rule_id: string;
+  description?: string;
+  match: BDPermissionMatch;
+  constraints?: BDConstraints;
+  /** Names of composite predicates (by id) that must all pass for this rule to fire. */
+  composite_checks?: string[];
+  decision: 'permit';
+}
+
+/** Outcome of one composite check run during BD-call governance. */
+export interface BDCompositeOutcome {
+  composite: string;
+  // Inlined union (matches CompositeResult in lib/authzen/composite-dispatch.ts);
+  // kept inline to avoid a types -> lib import cycle.
+  result: 'pass' | 'fail' | 'stub' | 'review';
+}
+
+/**
+ * Audit record of one governed Bright Data call, captured into a signed
+ * receipt/record's bd_calls[]. Produced by the MCP proxy (lib/mcp). Execution
+ * fields are null when the call was denied (never executed) or when execution
+ * failed before a response was captured.
+ */
+export interface BDCallAudit {
+  service: BDService;
+  tool: string;
+  parameters: Record<string, unknown>;
+  matched_rule_id: string | null;
+  governance_result: 'permit' | 'deny';
+  composite_outcomes: BDCompositeOutcome[];
+  executed_at: string | null;
+  duration_ms: number | null;
+  response_sha256: string | null;
+  response_size_bytes: number | null;
+  bd_request_id: string | null;
 }

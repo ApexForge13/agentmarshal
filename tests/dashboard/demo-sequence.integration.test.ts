@@ -101,10 +101,12 @@ describe('trading-desk demo sequence — production resolver path (Bubble 14)', 
   });
 
   it('the propose_trade scenario records a governed bd_call in its Internal Audit record (Bubble 17)', async () => {
-    // Scenario 0 (TradingAgent → trading_v2) runs entity_adverse_media_check_v0, which
-    // makes a GOVERNED SERP call through the MCP proxy. With no BD token in the test
-    // env the proxy permits but does not execute (hermetic) — a governance-only bd_call
-    // is still recorded into the signed Internal Audit record.
+    // Scenario 0 (TradingAgent → trading_v2) runs entity_adverse_media_check (v1), which
+    // makes a GOVERNED SERP call through the MCP proxy. With no BD token in the test env
+    // the proxy permits but does not execute (hermetic) — a governance-only bd_call is
+    // still recorded into the signed Internal Audit record, and v1 resolves best-effort
+    // pass (screening provider unavailable → non-blocking), so the clean counterparty
+    // still permits. With creds, v1 would chain Crawl calls and score the content.
     const scenarios = loadDemoScenarios();
     const proposeTrade = scenarios[0];
     expect(proposeTrade.request.subject.type).toBe('TradingAgent');
@@ -119,7 +121,7 @@ describe('trading-desk demo sequence — production resolver path (Bubble 14)', 
     const composites = body.record.evaluation.composite_evaluations.map(
       (c: { predicate: string }) => c.predicate,
     );
-    expect(composites).toContain('entity_adverse_media_check_v0');
+    expect(composites).toContain('entity_adverse_media_check');
 
     expect(body.record.bd_calls).toHaveLength(1);
     const bdCall = body.record.bd_calls[0];

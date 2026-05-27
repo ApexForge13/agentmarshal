@@ -12,7 +12,7 @@ import { validateInternalAuditRecord } from '../../../lib/compliance/internal-au
 import { canonicalize } from '../../../lib/compliance/receipt/canonical';
 import { verify } from '../../../lib/compliance/receipt/verify';
 import { FileKeyProvider } from '../../../lib/compliance/keys/file-provider';
-import type { EvaluationResult } from '../../../types/authzen';
+import type { EvaluationResult, BDCallAudit, BDService } from '../../../types/authzen';
 
 function tmpDir(): string {
   return join(tmpdir(), `agentmarshal-test-${randomBytes(8).toString('hex')}`);
@@ -127,6 +127,45 @@ describe('buildInternalAuditRecord', () => {
   it('the output passes its own schema (builder self-validation)', async () => {
     const { input } = await commonInputs();
     const record = await buildInternalAuditRecord(input);
+    const result = validateInternalAuditRecord(record);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('validates a record whose bd_calls span every Bright Data service, incl. crawl_api (Bubble 19 regression)', async () => {
+    // Guards the internal-audit-record schema bd_calls.service enum against drift from
+    // the BDService union. Bubble 18 added crawl_api to the scope-contract schema + the
+    // TS union but not the record schemas; a real crawl_api bd_call (Bubble 19 v1) then
+    // failed buildInternalAuditRecord's self-validation. This pins every service.
+    const allServices: BDService[] = [
+      'serp_api',
+      'web_unlocker',
+      'scraping_browser',
+      'web_scraper_api',
+      'proxies',
+      'scraper_studio',
+      'mcp_server',
+      'crawl_api',
+    ];
+    const bdCall = (service: BDService): BDCallAudit => ({
+      service,
+      tool: 'scrape_url',
+      parameters: { url: 'https://example.com' },
+      matched_rule_id: 'rule-x',
+      governance_result: 'permit',
+      composite_outcomes: [],
+      executed_at: '2026-05-27T00:00:00.000Z',
+      duration_ms: 5,
+      response_sha256: 'a'.repeat(64),
+      response_size_bytes: 100,
+      bd_request_id: null,
+    });
+
+    const { input } = await commonInputs();
+    const record = await buildInternalAuditRecord({ ...input, bdCalls: allServices.map(bdCall) });
+
+    expect(record.bd_calls).toHaveLength(allServices.length);
+    expect(record.bd_calls?.map((c) => c.service)).toEqual(allServices);
     const result = validateInternalAuditRecord(record);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);

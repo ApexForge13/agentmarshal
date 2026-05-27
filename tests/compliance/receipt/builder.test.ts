@@ -10,7 +10,7 @@ import {
 } from '../../../lib/compliance/receipt/builder';
 import { validateReceipt } from '../../../lib/compliance/receipt/schema';
 import { FileKeyProvider } from '../../../lib/compliance/keys/file-provider';
-import type { EvaluationResult } from '../../../types/authzen';
+import type { EvaluationResult, BDCallAudit, BDService } from '../../../types/authzen';
 
 function tmpDir(): string {
   return join(tmpdir(), `agentmarshal-test-${randomBytes(8).toString('hex')}`);
@@ -86,6 +86,43 @@ describe('buildReceipt', () => {
 
   it('the output passes its own schema (builder self-validation)', async () => {
     const receipt = await buildReceipt(await commonInputs());
+    const result = validateReceipt(receipt);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('validates a receipt whose bd_calls span every Bright Data service, incl. crawl_api (Bubble 19 regression)', async () => {
+    // Guards the compliance-receipt schema bd_calls.service enum against BDService drift
+    // (the sibling fix to the internal-audit-record schema; crawl_api was missing from
+    // both record schemas until Bubble 19).
+    const allServices: BDService[] = [
+      'serp_api',
+      'web_unlocker',
+      'scraping_browser',
+      'web_scraper_api',
+      'proxies',
+      'scraper_studio',
+      'mcp_server',
+      'crawl_api',
+    ];
+    const bdCall = (service: BDService): BDCallAudit => ({
+      service,
+      tool: 'scrape_url',
+      parameters: { url: 'https://example.com' },
+      matched_rule_id: 'rule-x',
+      governance_result: 'permit',
+      composite_outcomes: [],
+      executed_at: '2026-05-27T00:00:00.000Z',
+      duration_ms: 5,
+      response_sha256: 'a'.repeat(64),
+      response_size_bytes: 100,
+      bd_request_id: null,
+    });
+
+    const receipt = await buildReceipt({ ...(await commonInputs()), bdCalls: allServices.map(bdCall) });
+
+    expect(receipt.bd_calls).toHaveLength(allServices.length);
+    expect(receipt.bd_calls?.map((c) => c.service)).toEqual(allServices);
     const result = validateReceipt(receipt);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);

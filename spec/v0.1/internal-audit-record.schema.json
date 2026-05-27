@@ -345,7 +345,7 @@
         "service": {
           "description": "Bright Data service the call targeted.",
           "type": "string",
-          "enum": ["serp_api", "web_unlocker", "scraping_browser", "web_scraper_api", "proxies", "scraper_studio", "mcp_server"]
+          "enum": ["serp_api", "web_unlocker", "scraping_browser", "web_scraper_api", "proxies", "scraper_studio", "mcp_server", "crawl_api"]
         },
         "tool": { "description": "Service-specific tool name (e.g. 'search_google').", "type": "string", "minLength": 1 },
         "parameters": { "description": "The call parameters as governed.", "type": "object", "additionalProperties": true },

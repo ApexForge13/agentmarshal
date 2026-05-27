@@ -13,7 +13,7 @@
   "declared_scope": [
     {
       "rule_id": "trading-v1-base",
-      "description": "Trading-desk contract: gates the trade lifecycle (propose_trade, execute_trade, run_risk_check, fetch_research) for the TradingAgent / ResearchAgent / RiskAgent / ExecutionAgent fleet. The entity_not_sanctioned composite screens each action's counterparty/target entity against the OFAC SDN list supplied at runtime via action_properties.regulatory_state.ofac_sdn_list. PRE-scaffold: the composite returns an unresolved stub when the SDN list is not injected; the live OFAC SDN feed via Bright Data replaces the fixture-injected stub in a later workstream. Beyond declared_scope, this contract's bd_permissions govern the Bright Data screening pipeline the fleet drives through the MCP proxy: counterparty adverse media via SERP, Web Unlocker (paywalled financial news), and the Crawl API (article extraction). Beneficial-owner registry lookups via the Scraping Browser are planned for a later bubble.",
+      "description": "Trading-desk contract: gates the trade lifecycle (propose_trade, execute_trade, run_risk_check, fetch_research) for the TradingAgent / ResearchAgent / RiskAgent / ExecutionAgent fleet. The entity_not_sanctioned composite screens each action's counterparty/target entity against the OFAC SDN list supplied at runtime via action_properties.regulatory_state.ofac_sdn_list. PRE-scaffold: the composite returns an unresolved stub when the SDN list is not injected; the live OFAC SDN feed via Bright Data replaces the fixture-injected stub in a later workstream. The entity_adverse_media_check composite (Bubble 19) screens the same counterparty for adverse media by chaining a governed SERP search and Crawl API extraction through the MCP proxy and scoring the extracted article content against a financial-crime keyword list, returning pass, review, or fail; it is best-effort (non-blocking) when the screening provider is unavailable. Beyond declared_scope, this contract's bd_permissions govern the Bright Data screening pipeline the fleet drives through the MCP proxy: counterparty adverse media via SERP, Web Unlocker (paywalled financial news), and the Crawl API (article extraction). Beneficial-owner registry lookups via the Scraping Browser are planned for a later bubble.",
       "match": {
         "subject": { "id": { "exists": true } },
         "action": { "name": { "in": ["propose_trade", "execute_trade", "run_risk_check", "fetch_research"] } }
@@ -24,7 +24,7 @@
           "input": {}
         },
         {
-          "predicate": "entity_adverse_media_check_v0",
+          "predicate": "entity_adverse_media_check",
           "input": {}
         }
       ],

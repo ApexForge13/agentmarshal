@@ -21,6 +21,7 @@ function ToolMark() {
 
 const SYSTEM_LINKS: ReadonlyArray<{ href: string; label: string }> = [
   { href: '/audit-trail', label: 'Audit trail' },
+  { href: '/receipts', label: 'Receipts' },
   { href: '/scope-contracts', label: 'Scope contracts' },
   { href: '/verify', label: 'Verify' },
 ];

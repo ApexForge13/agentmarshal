@@ -233,4 +233,114 @@ describe('buildInternalAuditRecord', () => {
     const noSigners = { ...input, signers: [] };
     await expect(buildInternalAuditRecord(noSigners)).rejects.toThrow(/at least one signer/);
   });
+
+  it('LLM-shaped composite: reasoning string + concerns + model ride the signed body; sig + chain verify (Bubble 23 regression)', async () => {
+    // Pins the Bubble 22 claim: every signed audit record carries the LLM's
+    // human-readable justification end-to-end. Bubble 22 tested the LLM scorer in
+    // isolation and the composite at the result/details level; nothing exercised
+    // the path through builder -> Ed25519 sign -> verify. Bubble 19 proved this
+    // class of path can have gaps hermetic tests miss (the crawl_api enum bug
+    // surfaced only on a real eval). This pins reasoning + concerns + model into
+    // the canonical signed bytes so a future refactor that drops any of them
+    // breaks loudly here, not silently in production.
+    const REASONING =
+      'SEC indicted Helix Bridge Capital Partners for fraud and money laundering, along with regulatory actions including asset freezes and operating bans.';
+    const CONCERNS = ['SEC indictment', 'fraud', 'money laundering', 'asset freeze'];
+    const MODEL = 'gpt-4.1-mini-2025-04-14';
+
+    const { provider, input } = await commonInputs();
+    const llmShapedResult: EvaluationResult = {
+      effect: 'deny',
+      evaluation_path: 'declared_scope',
+      matched_rule_id: 'trading-v1-base',
+      out_of_scope_term: null,
+      reason_code: 'COMPOSITE_FAIL',
+      reason: 'adverse media composite returned fail',
+      predicate_evaluations: [],
+      composite_evaluations: [
+        {
+          predicate: 'entity_adverse_media_check',
+          result: 'fail',
+          reason: REASONING,
+          details: {
+            scoring_path: 'llm',
+            scoring_mode: 'llm_with_keyword_fallback',
+            llm_verdict: 'fail',
+            llm_reasoning: REASONING,
+            llm_concerns: CONCERNS,
+            llm_model: MODEL,
+            llm_content_truncated: false,
+            llm_content_chars_sent: 410,
+            llm_credits_used: 677,
+            llm_usd_spent: 0.0003385,
+          },
+        },
+      ],
+    };
+
+    const record = await buildInternalAuditRecord({
+      ...input,
+      evaluationResult: llmShapedResult,
+    });
+
+    // (a) The reasoning sentence, every concern, the model name, and the scoring
+    // mode all ride inside the canonical bytes the Ed25519 signature covers.
+    // Strip everything attached AFTER signing (audit_hash, signatures,
+    // timestamp_token) and recompute the canonical body.
+    const { audit_hash, signatures, timestamp_token: _ts, ...body } = record;
+    void _ts;
+    const canonicalBody = canonicalize(body).toString('utf-8');
+    expect(canonicalBody).toContain(REASONING);
+    for (const concern of CONCERNS) expect(canonicalBody).toContain(concern);
+    expect(canonicalBody).toContain(MODEL);
+    expect(canonicalBody).toContain('llm_with_keyword_fallback');
+    expect(canonicalBody).toContain('"scoring_path":"llm"');
+
+    // (b) The Ed25519 signature verifies against the canonical body.
+    const sig = signatures[0];
+    const keyMaterial = await provider.getPublicKey(sig.key_id);
+    expect(keyMaterial).not.toBeNull();
+    const sigOk = verify({
+      canonicalBytes: canonicalize(body),
+      signatureHex: sig.signature,
+      publicKeyRaw: keyMaterial!.public_key_raw,
+      algorithm: sig.algorithm,
+    });
+    expect(sigOk).toBe(true);
+
+    // (c) audit_hash recomputes from body + signatures (verifies the hash binds
+    // the signature itself, not just the unsigned body).
+    expect(computeAuditHash({ ...body, signatures })).toBe(audit_hash);
+
+    // (d) Tampering with the reasoning sentence flips the signature — the
+    // binding invariant. The hermetic verifier (verify()) is given the
+    // test-local public key directly; the production verifier
+    // (lib/verify/verify-receipt.ts -> verifyReceipt) reads the PUBLISHED key
+    // from disk, which the tmpdir-backed test key won't match. The Bubble 23
+    // Phase 1 live capture exercised the production verifier end-to-end
+    // (returned verified:true on a record carrying real LLM reasoning).
+    const tamperedBody = JSON.parse(JSON.stringify(body)) as typeof body;
+    const tamperedAmc = (tamperedBody.evaluation.composite_evaluations ?? []).find(
+      (c) => c.predicate === 'entity_adverse_media_check',
+    );
+    if (tamperedAmc) tamperedAmc.reason = 'tampered';
+    const tamperedOk = verify({
+      canonicalBytes: canonicalize(tamperedBody),
+      signatureHex: sig.signature,
+      publicKeyRaw: keyMaterial!.public_key_raw,
+      algorithm: sig.algorithm,
+    });
+    expect(tamperedOk).toBe(false);
+
+    // (e) Hash-chain link: a second record built on top carries the first's
+    // audit_hash in previous_audit_hash and its own audit_hash recomputes.
+    const followon = await buildInternalAuditRecord({
+      ...input,
+      evaluationResult: llmShapedResult,
+      previousAuditHash: record.audit_hash,
+    });
+    expect(followon.previous_audit_hash).toBe(record.audit_hash);
+    const { audit_hash: followonHash, ...followonRest } = followon;
+    expect(computeAuditHash(followonRest)).toBe(followonHash);
+  });
 });

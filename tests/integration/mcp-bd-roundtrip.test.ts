@@ -16,6 +16,8 @@ import { runUnlockNewsArticle } from '@/lib/mcp/unlocker-tool';
 import { runCrawlArticleContent } from '@/lib/mcp/crawl-tool';
 import { runBdMcpPassthrough } from '@/lib/mcp/passthrough-tool';
 import { bdMcpListTools } from '@/lib/bd/mcp-passthrough-client';
+import { runBrowseRegistryPage } from '@/lib/mcp/browser-tool';
+import { bdScrapingBrowserBrowse } from '@/lib/bd/scraping-browser-client';
 
 const HAS_BD_CREDS =
   !!process.env.BRIGHTDATA_API_TOKEN && !!process.env.BRIGHTDATA_SERP_ZONE;
@@ -25,6 +27,9 @@ const HAS_CRAWL =
   !!process.env.BRIGHTDATA_API_TOKEN && !!process.env.BRIGHTDATA_CRAWL_DATASET_ID;
 // BD's hosted MCP uses only the API token (token query param), no zone.
 const HAS_MCP = !!process.env.BRIGHTDATA_API_TOKEN;
+// Scraping Browser uses zone username/password (CDP), not the API token.
+const HAS_BROWSER =
+  !!process.env.BRIGHTDATA_BROWSER_USER && !!process.env.BRIGHTDATA_BROWSER_PASS;
 
 describe.skipIf(!HAS_BD_CREDS)(
   'MCP ↔ BD SERP round-trip (real BD, gated by BRIGHTDATA_API_TOKEN)',
@@ -147,5 +152,44 @@ describe.skipIf(!HAS_MCP)(
       expect(out.results).not.toBeNull();
       expect(out.bd_call.response_sha256).toMatch(/^[a-f0-9]{64}$/);
     }, 45000);
+  },
+);
+
+describe.skipIf(!HAS_BROWSER)(
+  'MCP ↔ BD Scraping Browser round-trip (real BD CDP, gated by BRIGHTDATA_BROWSER_USER/PASS)',
+  () => {
+    it('the Scraping Browser client renders example.com over CDP (transport sanity)', async () => {
+      const out = await bdScrapingBrowserBrowse({ url: 'https://example.com', timeout_ms: 60_000 });
+      expect(out.status).toBe(200);
+      expect(out.results.content.toLowerCase()).toContain('example domain');
+    }, 90_000);
+
+    it('TradingAgent browse_registry_page governs + renders an OpenCorporates registry page', async () => {
+      // NOTE: the rule also allowlists UK Companies House, but Bright Data's network
+      // policy blocks Government domains (find-and-update.company-information.service.gov.uk
+      // returns "classified as Government and blocked"). OpenCorporates is a non-government
+      // registry aggregator (also in the allowlist), so the live path uses it. The www
+      // subdomain matches the *.opencorporates.com pattern under bd_domain_in_scope's
+      // strict (apex-excluded) wildcard.
+      const out = await runBrowseRegistryPage({
+        agent_id: 'TradingAgent',
+        url: 'https://www.opencorporates.com/',
+        purpose: 'registry_lookup',
+      });
+
+      expect(out.bd_call.governance_result).toBe('permit');
+      expect(out.bd_call.matched_rule_id).toBe('ubo_registry_lookup');
+      expect(out.bd_call.composite_outcomes).toEqual([
+        { composite: 'bd_service_authorized', result: 'pass' },
+        { composite: 'bd_query_purpose_matches', result: 'pass' },
+        { composite: 'bd_domain_in_scope', result: 'pass' },
+      ]);
+
+      if (!out.ok) {
+        throw new Error(`Scraping Browser call did not succeed: ${out.reason}`);
+      }
+      expect((out.results?.content.length ?? 0) > 0).toBe(true);
+      expect(out.bd_call.response_sha256).toMatch(/^[a-f0-9]{64}$/);
+    }, 90_000);
   },
 );

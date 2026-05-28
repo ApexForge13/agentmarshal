@@ -1,12 +1,12 @@
 // AgentMarshal MCP server (Bubble 17 SERP; Bubble 18 Web Unlocker + Crawl API;
-// Bubble 20 MCP Server passthrough).
+// Bubble 20 MCP Server passthrough + Scraping Browser).
 //
 // Stands up an @modelcontextprotocol/sdk McpServer and registers the governed BD
 // tools: serp_adverse_media_search, unlock_news_article, crawl_article_content,
-// bd_mcp_passthrough. Each tool's governance + execution logic lives in its own
-// transport-agnostic, unit-tested module (./serp-tool, ./unlocker-tool, ./crawl-tool,
-// ./passthrough-tool); this module is the thin MCP protocol surface. The Streamable
-// HTTP transport is wired in app/api/mcp/v1/route.ts.
+// bd_mcp_passthrough, browse_registry_page. Each tool's governance + execution logic
+// lives in its own transport-agnostic, unit-tested module (./serp-tool, ./unlocker-tool,
+// ./crawl-tool, ./passthrough-tool, ./browser-tool); this module is the thin MCP protocol
+// surface. The Streamable HTTP transport is wired in app/api/mcp/v1/route.ts.
 //
 // A fresh server is created per request (stateless transport), so createAgentMarshalMcpServer
 // takes optional deps for test injection.
@@ -17,10 +17,15 @@ import { runSerpAdverseMediaSearch, type SerpToolDeps } from './serp-tool';
 import { runUnlockNewsArticle, type UnlockerToolDeps } from './unlocker-tool';
 import { runCrawlArticleContent, type CrawlToolDeps } from './crawl-tool';
 import { runBdMcpPassthrough, type PassthroughToolDeps } from './passthrough-tool';
+import { runBrowseRegistryPage, type BrowserToolDeps } from './browser-tool';
 import type { BDCallAudit } from '@/types/authzen';
 
 /** Combined tool deps — each tool runner reads only its own injected client. */
-export type McpServerDeps = SerpToolDeps & UnlockerToolDeps & CrawlToolDeps & PassthroughToolDeps;
+export type McpServerDeps = SerpToolDeps &
+  UnlockerToolDeps &
+  CrawlToolDeps &
+  PassthroughToolDeps &
+  BrowserToolDeps;
 
 /** Maps a governed tool result (deny / exec-fail / success) onto an MCP tool result. */
 function toMcpResult(result: {
@@ -228,6 +233,47 @@ export function createAgentMarshalMcpServer(deps: McpServerDeps = {}): McpServer
           bd_tool_name: args.bd_tool_name,
           bd_tool_input: args.bd_tool_input,
           purpose: args.purpose,
+          subject_type: args.subject_type,
+        },
+        deps,
+      );
+      return toMcpResult(result);
+    },
+  );
+
+  server.registerTool(
+    'browse_registry_page',
+    {
+      title: 'Browse a JS-rendered registry page (governed)',
+      description:
+        "Loads a JS-rendered corporate-registry page (e.g. UK Companies House) through Bright Data's Scraping Browser over CDP, gated by the agent's Scope Contract bd_permissions (service + purpose + URL domain allowlist). Returns the rendered HTML plus a bd_call audit entry suitable for a signed receipt.",
+      inputSchema: {
+        agent_id: z
+          .string()
+          .describe('Agent identity whose Scope Contract governs this call (subject.id or type name).'),
+        url: z
+          .string()
+          .describe("Absolute registry URL to render; must fall under the matched rule's domain_in allowlist."),
+        purpose: z
+          .enum(['registry_lookup'])
+          .describe('Declared purpose; must equal the purpose the matched bd_permissions rule authorizes.'),
+        wait_for_selector: z
+          .string()
+          .optional()
+          .describe('Optional CSS selector to wait for after navigation (JS-rendered content).'),
+        subject_type: z
+          .string()
+          .optional()
+          .describe('Optional subject.type for the agent-contract-map type-name fallback.'),
+      },
+    },
+    async (args) => {
+      const result = await runBrowseRegistryPage(
+        {
+          agent_id: args.agent_id,
+          url: args.url,
+          purpose: args.purpose,
+          wait_for_selector: args.wait_for_selector,
           subject_type: args.subject_type,
         },
         deps,

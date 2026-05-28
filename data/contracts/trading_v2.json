@@ -106,6 +106,29 @@
       },
       "composite_checks": ["bd_service_authorized", "bd_query_purpose_matches"],
       "decision": "permit"
+    },
+    {
+      "rule_id": "bd_mcp_governed_passthrough",
+      "description": "Governance-wrapped passthrough to Bright Data's hosted MCP server; forwards tools/call only for the curated web-access tools, so any future BD MCP tool is auto-governed without code changes",
+      "match": {
+        "service": "mcp_server",
+        "tool": "bd_mcp_passthrough",
+        "parameters": {
+          "purpose": { "equals": "mcp_passthrough" },
+          "bd_tool_name": {
+            "in": ["search_engine", "scrape_as_markdown", "search_engine_batch", "scrape_batch"]
+          }
+        }
+      },
+      "constraints": {
+        "max_calls_per_evaluation": 8,
+        "max_calls_per_minute": 30,
+        "max_cost_credits": 1.00,
+        "response_handling": "fingerprint",
+        "max_response_size_kb": 512
+      },
+      "composite_checks": ["bd_service_authorized", "bd_query_purpose_matches", "bd_passthrough_tool_in_allowlist"],
+      "decision": "permit"
     }
   ]
 }

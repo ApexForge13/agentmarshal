@@ -8,13 +8,21 @@ import { registerComposite } from '@/lib/authzen/composite-dispatch';
 import { bdServiceAuthorizedPredicate } from './bd_service_authorized';
 import { bdQueryPurposeMatchesPredicate } from './bd_query_purpose_matches';
 import { bdDomainInScopePredicate } from './bd_domain_in_scope';
+import { bdPassthroughToolInAllowlistPredicate } from './bd_passthrough_tool_in_allowlist';
 
 export function registerAllBdComposites(): void {
   registerComposite(bdServiceAuthorizedPredicate);
   registerComposite(bdQueryPurposeMatchesPredicate);
   registerComposite(bdDomainInScopePredicate);
+  // Bubble 20: gates which BD MCP tools the governed passthrough may forward.
+  registerComposite(bdPassthroughToolInAllowlistPredicate);
 }
 
 registerAllBdComposites();
 
-export { bdServiceAuthorizedPredicate, bdQueryPurposeMatchesPredicate, bdDomainInScopePredicate };
+export {
+  bdServiceAuthorizedPredicate,
+  bdQueryPurposeMatchesPredicate,
+  bdDomainInScopePredicate,
+  bdPassthroughToolInAllowlistPredicate,
+};

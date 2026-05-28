@@ -14,6 +14,8 @@ import { describe, it, expect } from 'vitest';
 import { runSerpAdverseMediaSearch } from '@/lib/mcp/serp-tool';
 import { runUnlockNewsArticle } from '@/lib/mcp/unlocker-tool';
 import { runCrawlArticleContent } from '@/lib/mcp/crawl-tool';
+import { runBdMcpPassthrough } from '@/lib/mcp/passthrough-tool';
+import { bdMcpListTools } from '@/lib/bd/mcp-passthrough-client';
 
 const HAS_BD_CREDS =
   !!process.env.BRIGHTDATA_API_TOKEN && !!process.env.BRIGHTDATA_SERP_ZONE;
@@ -21,6 +23,8 @@ const HAS_UNLOCKER =
   !!process.env.BRIGHTDATA_API_TOKEN && !!process.env.BRIGHTDATA_UNLOCKER_ZONE;
 const HAS_CRAWL =
   !!process.env.BRIGHTDATA_API_TOKEN && !!process.env.BRIGHTDATA_CRAWL_DATASET_ID;
+// BD's hosted MCP uses only the API token (token query param), no zone.
+const HAS_MCP = !!process.env.BRIGHTDATA_API_TOKEN;
 
 describe.skipIf(!HAS_BD_CREDS)(
   'MCP ↔ BD SERP round-trip (real BD, gated by BRIGHTDATA_API_TOKEN)',
@@ -109,5 +113,39 @@ describe.skipIf(!HAS_CRAWL)(
       expect((out.results?.items.length ?? 0) > 0).toBe(true);
       expect(out.bd_call.response_sha256).toMatch(/^[a-f0-9]{64}$/);
     }, 30000);
+  },
+);
+
+describe.skipIf(!HAS_MCP)(
+  'MCP ↔ BD MCP Server passthrough round-trip (real BD, gated by BRIGHTDATA_API_TOKEN)',
+  () => {
+    it('lists BD MCP tools through the passthrough client', async () => {
+      const tools = await bdMcpListTools();
+      expect(tools).toContain('search_engine');
+      expect(tools).toContain('scrape_as_markdown');
+    }, 30000);
+
+    it('TradingAgent governs + forwards an allowlisted search_engine call to BD MCP', async () => {
+      const out = await runBdMcpPassthrough({
+        agent_id: 'TradingAgent',
+        bd_tool_name: 'search_engine',
+        bd_tool_input: { query: 'example domain' },
+        purpose: 'mcp_passthrough',
+      });
+
+      expect(out.bd_call.governance_result).toBe('permit');
+      expect(out.bd_call.matched_rule_id).toBe('bd_mcp_governed_passthrough');
+      expect(out.bd_call.composite_outcomes).toEqual([
+        { composite: 'bd_service_authorized', result: 'pass' },
+        { composite: 'bd_query_purpose_matches', result: 'pass' },
+        { composite: 'bd_passthrough_tool_in_allowlist', result: 'pass' },
+      ]);
+
+      if (!out.ok) {
+        throw new Error(`BD MCP passthrough call did not succeed: ${out.reason}`);
+      }
+      expect(out.results).not.toBeNull();
+      expect(out.bd_call.response_sha256).toMatch(/^[a-f0-9]{64}$/);
+    }, 45000);
   },
 );

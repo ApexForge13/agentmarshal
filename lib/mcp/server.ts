@@ -1,10 +1,12 @@
-// AgentMarshal MCP server (Bubble 17 SERP; Bubble 18 Web Unlocker + Crawl API).
+// AgentMarshal MCP server (Bubble 17 SERP; Bubble 18 Web Unlocker + Crawl API;
+// Bubble 20 MCP Server passthrough).
 //
 // Stands up an @modelcontextprotocol/sdk McpServer and registers the governed BD
-// tools: serp_adverse_media_search, unlock_news_article, crawl_article_content. Each
-// tool's governance + execution logic lives in its own transport-agnostic, unit-tested
-// module (./serp-tool, ./unlocker-tool, ./crawl-tool); this module is the thin MCP
-// protocol surface. The Streamable HTTP transport is wired in app/api/mcp/v1/route.ts.
+// tools: serp_adverse_media_search, unlock_news_article, crawl_article_content,
+// bd_mcp_passthrough. Each tool's governance + execution logic lives in its own
+// transport-agnostic, unit-tested module (./serp-tool, ./unlocker-tool, ./crawl-tool,
+// ./passthrough-tool); this module is the thin MCP protocol surface. The Streamable
+// HTTP transport is wired in app/api/mcp/v1/route.ts.
 //
 // A fresh server is created per request (stateless transport), so createAgentMarshalMcpServer
 // takes optional deps for test injection.
@@ -14,10 +16,11 @@ import { z } from 'zod';
 import { runSerpAdverseMediaSearch, type SerpToolDeps } from './serp-tool';
 import { runUnlockNewsArticle, type UnlockerToolDeps } from './unlocker-tool';
 import { runCrawlArticleContent, type CrawlToolDeps } from './crawl-tool';
+import { runBdMcpPassthrough, type PassthroughToolDeps } from './passthrough-tool';
 import type { BDCallAudit } from '@/types/authzen';
 
 /** Combined tool deps — each tool runner reads only its own injected client. */
-export type McpServerDeps = SerpToolDeps & UnlockerToolDeps & CrawlToolDeps;
+export type McpServerDeps = SerpToolDeps & UnlockerToolDeps & CrawlToolDeps & PassthroughToolDeps;
 
 /** Maps a governed tool result (deny / exec-fail / success) onto an MCP tool result. */
 function toMcpResult(result: {
@@ -183,6 +186,47 @@ export function createAgentMarshalMcpServer(deps: McpServerDeps = {}): McpServer
         {
           agent_id: args.agent_id,
           url: args.url,
+          purpose: args.purpose,
+          subject_type: args.subject_type,
+        },
+        deps,
+      );
+      return toMcpResult(result);
+    },
+  );
+
+  server.registerTool(
+    'bd_mcp_passthrough',
+    {
+      title: 'Governed passthrough to the Bright Data MCP server',
+      description:
+        "Forwards a tools/call to Bright Data's hosted MCP server after the agent's Scope Contract governs it. Only BD MCP tools in the matched rule's bd_tool_name allowlist are permitted; the wrapped call and BD's response are captured in a bd_call audit entry. Any tool BD adds to its MCP catalog is auto-governed with no code change here.",
+      inputSchema: {
+        agent_id: z
+          .string()
+          .describe('Agent identity whose Scope Contract governs this call (subject.id or type name).'),
+        bd_tool_name: z
+          .string()
+          .describe("Bright Data MCP tool to forward to (e.g. 'search_engine'); must be in the rule allowlist."),
+        bd_tool_input: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe('Arguments forwarded verbatim to the BD MCP tool.'),
+        purpose: z
+          .enum(['mcp_passthrough'])
+          .describe('Declared purpose; must equal the purpose the matched bd_permissions rule authorizes.'),
+        subject_type: z
+          .string()
+          .optional()
+          .describe('Optional subject.type for the agent-contract-map type-name fallback.'),
+      },
+    },
+    async (args) => {
+      const result = await runBdMcpPassthrough(
+        {
+          agent_id: args.agent_id,
+          bd_tool_name: args.bd_tool_name,
+          bd_tool_input: args.bd_tool_input,
           purpose: args.purpose,
           subject_type: args.subject_type,
         },

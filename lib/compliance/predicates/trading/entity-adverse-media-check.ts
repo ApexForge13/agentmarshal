@@ -1,11 +1,19 @@
-// entity_adverse_media_check composite predicate (v1 — Bubble 19).
+// entity_adverse_media_check composite predicate.
 //
 // Real adverse-media screening: during a trading evaluation it chains two GOVERNED
 // Bright Data calls through the MCP proxy — a SERP search for the counterparty, then
 // a Crawl API extraction of each top result — and scores the extracted article
-// content against a financial-crime keyword list, returning pass / review / fail.
-// Each governed call pushes its bd_call audit entry onto ctx.bd_calls so the full
-// screening chain (1 SERP + up to N Crawl calls) rides the signed record.
+// content to return pass / review / fail. Each governed call pushes its bd_call
+// audit entry onto ctx.bd_calls so the full screening chain (1 SERP + up to N
+// Crawl calls) rides the signed record.
+//
+// Scoring is configurable (Bubble 22). The default `llm_with_keyword_fallback` calls
+// the AI/ML API LLM to interpret the content; on any LLM failure (no key, request
+// error, malformed output) it falls back to the Bubble 19 distinct-keyword scorer
+// and records `llm_fallback: true`. `keyword_only` forces the heuristic path
+// (byte-identical to Bubble 19). `llm_only` requires the LLM; on failure the
+// composite returns pass with `screening_unavailable: true` (matches the
+// can't-screen best-effort semantics).
 //
 // Best-effort (non-blocking) policy: adverse media is enrichment, not a gate on the
 // screening infrastructure. When screening cannot execute — no BD credentials, the
@@ -16,12 +24,14 @@
 // credentials are present. (v0, ./entity-adverse-media-check-v0.ts, was pass-always.)
 //
 // Thresholds are per-contract via the composite's static input (review_threshold /
-// fail_threshold over the count of DISTINCT keywords found); defaults below.
+// fail_threshold over the count of DISTINCT keywords found); defaults below. They
+// apply only to the keyword scorer; the LLM verdict is three-state directly.
 //
 // Inputs:
 //   - action_properties.entity.id (or .entity.name) : the counterparty to screen
 //   - ctx.subject {id, type}                          : resolves the agent's contract
-//   - static input                                    : query template, thresholds, keywords
+//   - static input                                    : query template, thresholds,
+//                                                       keywords, scoring_mode, llm_model
 
 import type {
   CompositePredicate,
@@ -30,6 +40,16 @@ import type {
 import { runSerpAdverseMediaSearch } from '@/lib/mcp/serp-tool';
 import { runCrawlArticleContent } from '@/lib/mcp/crawl-tool';
 import { DEFAULT_FINANCIAL_CRIME_KEYWORDS } from '../adverse-media-keywords';
+import {
+  scoreAdverseMediaWithLlm,
+  type AdverseMediaLlmScoreResult,
+} from './adverse-media-llm-scorer';
+import { AIML_DEFAULT_MODEL } from '@/lib/llm/client';
+
+export type AdverseMediaScoringMode =
+  | 'llm_with_keyword_fallback'
+  | 'llm_only'
+  | 'keyword_only';
 
 interface EntityAdverseMediaCheckInput {
   /** Search query; `{entity_name}` is substituted with the resolved entity identifier. */
@@ -38,22 +58,28 @@ interface EntityAdverseMediaCheckInput {
   max_results_to_extract?: number;
   /** Financial-crime keywords to count (case-insensitive, distinct). */
   keyword_list?: string[];
-  /** Distinct-keyword count at/above which the result is `review`. */
+  /** Distinct-keyword count at/above which the result is `review` (keyword scorer only). */
   review_threshold?: number;
-  /** Distinct-keyword count at/above which the result is `fail`. */
+  /** Distinct-keyword count at/above which the result is `fail` (keyword scorer only). */
   fail_threshold?: number;
+  /** How to score retrieved content. Default: `llm_with_keyword_fallback`. */
+  scoring_mode?: AdverseMediaScoringMode;
+  /** AI/ML API model id when scoring with the LLM. Default: openai/gpt-4.1-mini. */
+  llm_model?: string;
 }
 
 // Quote-anchored on the entity so SERP surfaces coverage ABOUT the counterparty, not
 // generic crime news: an unquoted keyword pile ("{name} fraud investigation indictment")
 // was verified live to pull other entities' fraud articles and false-positive a clean
-// counterparty to `fail`. Keyword interpretation stays heuristic (v1) — the v0.3
-// roadmap replaces it with LLM scoring.
+// counterparty to `fail`. The keyword scorer remains heuristic; Bubble 22 swaps the
+// default scoring step for an LLM that reads the article and decides whether the
+// entity is actually the subject of the adverse coverage.
 const DEFAULT_QUERY_TEMPLATE =
   '"{entity_name}" (fraud OR investigation OR lawsuit OR sanctions OR indictment OR misconduct)';
 const DEFAULT_MAX_RESULTS = 3;
 const DEFAULT_REVIEW_THRESHOLD = 1;
 const DEFAULT_FAIL_THRESHOLD = 3;
+const DEFAULT_SCORING_MODE: AdverseMediaScoringMode = 'llm_with_keyword_fallback';
 const CRAWL_PURPOSE = 'adverse_media_extract';
 
 const INPUT_SCHEMA = {
@@ -65,6 +91,12 @@ const INPUT_SCHEMA = {
     keyword_list: { type: 'array', items: { type: 'string', minLength: 1 }, minItems: 1 },
     review_threshold: { type: 'integer', minimum: 1, default: DEFAULT_REVIEW_THRESHOLD },
     fail_threshold: { type: 'integer', minimum: 1, default: DEFAULT_FAIL_THRESHOLD },
+    scoring_mode: {
+      type: 'string',
+      enum: ['llm_with_keyword_fallback', 'llm_only', 'keyword_only'],
+      default: DEFAULT_SCORING_MODE,
+    },
+    llm_model: { type: 'string', minLength: 1, default: AIML_DEFAULT_MODEL },
   },
   additionalProperties: false,
 };
@@ -89,6 +121,100 @@ function findMatchedKeywords(content: string, keywords: string[]): string[] {
   return keywords.filter((kw) => kw.length > 0 && haystack.includes(kw.toLowerCase()));
 }
 
+interface KeywordScoreContext {
+  entityId: string;
+  searchQuery: string;
+  evaluatedUrls: string[];
+  skippedUrls: string[];
+  aggregatedContent: string;
+  keywords: string[];
+  reviewThreshold: number;
+  failThreshold: number;
+  scoringMode: AdverseMediaScoringMode;
+  llmFallback: boolean;
+  llmError?: string;
+}
+
+/** Scores the aggregated content with the Bubble 19 distinct-keyword heuristic. */
+function scoreWithKeywords(c: KeywordScoreContext): CompositePredicateEvaluation {
+  const matchedKeywords = findMatchedKeywords(c.aggregatedContent, c.keywords);
+  const matchCount = matchedKeywords.length;
+  const details: Record<string, unknown> = {
+    entity_identifier: c.entityId,
+    search_query: c.searchQuery,
+    evaluated_urls: c.evaluatedUrls,
+    skipped_urls: c.skippedUrls,
+    matched_keywords: matchedKeywords,
+    total_match_count: matchCount,
+    review_threshold: c.reviewThreshold,
+    fail_threshold: c.failThreshold,
+    scoring_mode: c.scoringMode,
+    scoring_path: 'keyword',
+  };
+  if (c.llmFallback) {
+    details.llm_fallback = true;
+    if (c.llmError) details.llm_error = c.llmError;
+  }
+  const n = c.evaluatedUrls.length;
+
+  if (matchCount >= c.failThreshold) {
+    return {
+      predicate: PREDICATE_NAME,
+      result: 'fail',
+      reason: `strong adverse media signals: ${matchCount} keyword matches (${matchedKeywords.join(', ')}) across ${n} source URLs — meets fail threshold ${c.failThreshold}`,
+      details,
+    };
+  }
+  if (matchCount >= c.reviewThreshold) {
+    return {
+      predicate: PREDICATE_NAME,
+      result: 'review',
+      reason: `possible adverse media: ${matchCount} keyword matches (${matchedKeywords.join(', ')}) across ${n} source URLs — analyst review required`,
+      details,
+    };
+  }
+  return {
+    predicate: PREDICATE_NAME,
+    result: 'pass',
+    reason: `no adverse media signals across ${n} source URLs (${matchCount} keyword matches, below review threshold ${c.reviewThreshold})`,
+    details,
+  };
+}
+
+/** Builds the composite evaluation from a successful LLM score. */
+function evaluationFromLlmScore(args: {
+  entityId: string;
+  searchQuery: string;
+  evaluatedUrls: string[];
+  skippedUrls: string[];
+  scoringMode: AdverseMediaScoringMode;
+  score: AdverseMediaLlmScoreResult;
+}): CompositePredicateEvaluation {
+  const { score } = args;
+  const details: Record<string, unknown> = {
+    entity_identifier: args.entityId,
+    search_query: args.searchQuery,
+    evaluated_urls: args.evaluatedUrls,
+    skipped_urls: args.skippedUrls,
+    scoring_mode: args.scoringMode,
+    scoring_path: 'llm',
+    llm_verdict: score.verdict,
+    llm_reasoning: score.reasoning,
+    llm_concerns: score.concerns,
+    llm_model: score.model,
+    llm_content_truncated: score.content_truncated,
+    llm_content_chars_sent: score.content_chars_sent,
+  };
+  if (score.cost.credits_used !== null) details.llm_credits_used = score.cost.credits_used;
+  if (score.cost.usd_spent !== null) details.llm_usd_spent = score.cost.usd_spent;
+  return {
+    predicate: PREDICATE_NAME,
+    result: score.verdict,
+    reason: score.reasoning,
+    details,
+  };
+}
+
 export const entityAdverseMediaCheckPredicate: CompositePredicate<EntityAdverseMediaCheckInput> = {
   name: PREDICATE_NAME,
   inputSchema: INPUT_SCHEMA,
@@ -110,6 +236,8 @@ export const entityAdverseMediaCheckPredicate: CompositePredicate<EntityAdverseM
     const keywords = input.keyword_list ?? [...DEFAULT_FINANCIAL_CRIME_KEYWORDS];
     const reviewThreshold = input.review_threshold ?? DEFAULT_REVIEW_THRESHOLD;
     const failThreshold = input.fail_threshold ?? DEFAULT_FAIL_THRESHOLD;
+    const scoringMode = input.scoring_mode ?? DEFAULT_SCORING_MODE;
+    const llmModel = input.llm_model ?? AIML_DEFAULT_MODEL;
     const searchQuery = template.replace(/\{entity_name\}/g, entityId);
 
     // 1) SERP search through the governed MCP proxy.
@@ -132,6 +260,7 @@ export const entityAdverseMediaCheckPredicate: CompositePredicate<EntityAdverseM
           entity_identifier: entityId,
           search_query: searchQuery,
           screening_unavailable: true,
+          scoring_mode: scoringMode,
           serp_governance_result: serp.bd_call.governance_result,
         },
       };
@@ -156,6 +285,7 @@ export const entityAdverseMediaCheckPredicate: CompositePredicate<EntityAdverseM
           total_match_count: 0,
           review_threshold: reviewThreshold,
           fail_threshold: failThreshold,
+          scoring_mode: scoringMode,
         },
       };
     }
@@ -198,46 +328,66 @@ export const entityAdverseMediaCheckPredicate: CompositePredicate<EntityAdverseM
           evaluated_urls: [],
           skipped_urls: skippedUrls,
           screening_incomplete: true,
+          scoring_mode: scoringMode,
         },
       };
     }
 
-    // 3) Score the aggregated content against the keyword list.
-    const matchedKeywords = findMatchedKeywords(aggregatedContent, keywords);
-    const matchCount = matchedKeywords.length;
-    const details = {
-      entity_identifier: entityId,
-      search_query: searchQuery,
-      evaluated_urls: evaluatedUrls,
-      skipped_urls: skippedUrls,
-      matched_keywords: matchedKeywords,
-      total_match_count: matchCount,
-      review_threshold: reviewThreshold,
-      fail_threshold: failThreshold,
+    // 3) Score the aggregated content. Branch on scoring_mode.
+    const keywordCtx: KeywordScoreContext = {
+      entityId,
+      searchQuery,
+      evaluatedUrls,
+      skippedUrls,
+      aggregatedContent,
+      keywords,
+      reviewThreshold,
+      failThreshold,
+      scoringMode,
+      llmFallback: false,
     };
-    const n = evaluatedUrls.length;
 
-    if (matchCount >= failThreshold) {
-      return {
-        predicate: PREDICATE_NAME,
-        result: 'fail',
-        reason: `strong adverse media signals: ${matchCount} keyword matches (${matchedKeywords.join(', ')}) across ${n} source URLs — meets fail threshold ${failThreshold}`,
-        details,
-      };
+    if (scoringMode === 'keyword_only') {
+      return scoreWithKeywords(keywordCtx);
     }
-    if (matchCount >= reviewThreshold) {
-      return {
-        predicate: PREDICATE_NAME,
-        result: 'review',
-        reason: `possible adverse media: ${matchCount} keyword matches (${matchedKeywords.join(', ')}) across ${n} source URLs — analyst review required`,
-        details,
-      };
+
+    // Both llm_only and llm_with_keyword_fallback attempt the LLM first.
+    try {
+      const score = await scoreAdverseMediaWithLlm({
+        entity_name: entityId,
+        content: aggregatedContent,
+        model: llmModel,
+      });
+      return evaluationFromLlmScore({
+        entityId,
+        searchQuery,
+        evaluatedUrls,
+        skippedUrls,
+        scoringMode,
+        score,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (scoringMode === 'llm_only') {
+        // The LLM was the configured scorer; without it we cannot screen. Best-effort: pass.
+        return {
+          predicate: PREDICATE_NAME,
+          result: 'pass',
+          reason: `adverse-media screening unavailable for ${entityId}: LLM scorer failed (${message}); recorded for audit, not blocking`,
+          details: {
+            entity_identifier: entityId,
+            search_query: searchQuery,
+            evaluated_urls: evaluatedUrls,
+            skipped_urls: skippedUrls,
+            screening_unavailable: true,
+            scoring_mode: scoringMode,
+            llm_error: message,
+            llm_model: llmModel,
+          },
+        };
+      }
+      // llm_with_keyword_fallback → run the keyword scorer and flag the fallback.
+      return scoreWithKeywords({ ...keywordCtx, llmFallback: true, llmError: message });
     }
-    return {
-      predicate: PREDICATE_NAME,
-      result: 'pass',
-      reason: `no adverse media signals across ${n} source URLs (${matchCount} keyword matches, below review threshold ${reviewThreshold})`,
-      details,
-    };
   },
 };

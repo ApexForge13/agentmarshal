@@ -50,8 +50,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <div className="sidebar-section">
         <div className="sidebar-label">Fleets</div>
         <Link
-          className={isActive('/') ? 'sidebar-item active' : 'sidebar-item'}
-          href="/"
+          className={isActive('/trading-desk') ? 'sidebar-item active' : 'sidebar-item'}
+          href="/trading-desk"
           style={{ textDecoration: 'none' }}
         >
           <span className="si-icon">

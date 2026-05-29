@@ -1,12 +1,14 @@
 'use client';
 
-// Shared verifier-result banner (Bubble 21), used by BOTH the one-click "Verify this
-// receipt" surface and the tamper-edit "Re-verify" surface. The green VERIFIED →
-// red TAMPERED contrast is the demo's punch line, so the verdict glyph + word are
-// oversized and high-contrast, readable from across a room. The verdict + reason come
-// straight from /api/verify/receipt (the real verifier on real, sometimes-modified
+// Shared verifier-result banner (Bubble 21; Bubble 26 restraint pass — Lucide icons).
+// Used by BOTH the one-click "Verify this receipt" surface and the tamper-edit
+// "Re-verify" surface. The green VERIFIED -> red TAMPERED contrast is the demo's punch
+// line, so the verdict icon + word are oversized and high-contrast. The verdict + reason
+// come straight from /api/verify/receipt (the real verifier on real, sometimes-modified
 // bytes) — never re-derived client-side.
 
+import type { ReactNode } from 'react';
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import type { VerifyResult } from '@/lib/verify/verify-receipt';
 
 export type VerifyState =
@@ -35,13 +37,13 @@ function timestampLine(r: VerifyResult): string {
 
 function Banner({
   tone,
-  glyph,
+  icon,
   title,
   detail,
   sub,
 }: {
   tone: Tone;
-  glyph: string;
+  icon: ReactNode;
   title: string;
   detail: string;
   sub?: string;
@@ -54,27 +56,25 @@ function Banner({
       style={{
         border: `1px solid ${t.border}`,
         background: t.bg,
-        padding: '16px 18px',
+        padding: '16px',
+        borderRadius: 6,
         display: 'flex',
         gap: 16,
         alignItems: 'flex-start',
       }}
     >
-      <span
-        aria-hidden
-        style={{ fontSize: 38, lineHeight: 1, color: t.color, fontFamily: 'var(--mono)', fontWeight: 600 }}
-      >
-        {glyph}
+      <span aria-hidden style={{ color: t.color, display: 'flex', flexShrink: 0, marginTop: 1 }}>
+        {icon}
       </span>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 22, fontWeight: 600, letterSpacing: '0.1em', color: t.color }}>
           {title}
         </div>
-        <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.55, wordBreak: 'break-word' }}>
+        <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 6, lineHeight: 1.55, wordBreak: 'break-word' }}>
           {detail}
         </div>
         {sub && (
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--text-3)', marginTop: 8, wordBreak: 'break-all' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)', marginTop: 8, wordBreak: 'break-all' }}>
             {sub}
           </div>
         )}
@@ -86,14 +86,21 @@ function Banner({
 export function VerifierResult({ state }: { state: VerifyState }) {
   if (state.status === 'idle') return null;
   if (state.status === 'loading') {
-    return <Banner tone="neutral" glyph="…" title="VERIFYING" detail="Re-running the Ed25519 signature check against the published public key." />;
+    return (
+      <Banner
+        tone="neutral"
+        icon={<Loader2 size={30} aria-hidden />}
+        title="VERIFYING"
+        detail="Re-running the Ed25519 signature check against the published public key."
+      />
+    );
   }
   if (state.status === 'error') {
-    return <Banner tone="bad" glyph="✕" title="CANNOT VERIFY" detail={state.error} />;
+    return <Banner tone="bad" icon={<XCircle size={30} aria-hidden />} title="CANNOT VERIFY" detail={state.error} />;
   }
   const r = state.result;
   if (!r.verified) {
-    return <Banner tone="bad" glyph="✕" title="TAMPERED" detail={r.reason} sub={timestampLine(r)} />;
+    return <Banner tone="bad" icon={<XCircle size={30} aria-hidden />} title="TAMPERED" detail={r.reason} sub={timestampLine(r)} />;
   }
-  return <Banner tone="good" glyph="✓" title="VERIFIED" detail={r.reason} sub={timestampLine(r)} />;
+  return <Banner tone="good" icon={<CheckCircle2 size={30} aria-hidden />} title="VERIFIED" detail={r.reason} sub={timestampLine(r)} />;
 }

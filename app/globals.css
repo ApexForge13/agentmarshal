@@ -1032,3 +1032,32 @@ svg { display: block; }
   color: var(--text-3);
 }
 .rcpt-meta .rcpt-action { margin-left: auto; }
+
+/* ─── /receipts restraint pass (Bubble 26) ───────────────────────────────
+   Scoped to .rcpt-detail. Shared base classes (.badge/.btn/.rail-section/
+   .textarea) are NOT mutated, so /audit-trail, /scope-contracts, and /verify
+   are unaffected. Hierarchy: verdict pill + LLM reasoning + tamper-edit carry
+   the weight; secondary panels recede via whitespace, not chrome. */
+.rcpt-detail .rail-section { border-bottom: none; padding: 16px 24px; }
+.rcpt-detail .rail-header { padding: 16px 24px; }
+.rcpt-detail .rail-section .title { font-size: 11px; color: var(--text-3); margin-bottom: 12px; }
+.rcpt-detail .badge { border-radius: 4px; }
+.rcpt-detail .textarea.mono { padding: 16px; resize: none; line-height: 1.5; border-radius: 6px; }
+
+/* verdict pill — skill treatment: pill shape, ~15% tonal bg, full-strength
+   text + 1px border, paired with a Lucide icon. */
+.rcpt-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border: 1px solid currentColor;
+  padding: 6px 12px;
+}
+.rcpt-verdict.permit { color: var(--healthy); background: rgba(74, 159, 74, 0.15); }
+.rcpt-verdict.review { color: var(--warning); background: rgba(201, 162, 39, 0.15); }
+.rcpt-verdict.deny { color: var(--danger); background: rgba(179, 60, 60, 0.15); }

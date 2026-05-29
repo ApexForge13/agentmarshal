@@ -23,6 +23,7 @@ import {
 } from '@/lib/dashboard/receipt-display';
 import type { BDCallAudit } from '@/types/authzen';
 import { VerifierResult, type VerifyState } from './VerifierResult';
+import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 const pretty = (v: unknown) => JSON.stringify(v, null, 2);
 
@@ -30,6 +31,12 @@ const DECISION_BADGE: Record<FeedDecision, { cls: string; label: string }> = {
   permit: { cls: 'healthy', label: 'PERMIT' },
   review: { cls: 'warning', label: 'REVIEW REQUIRED' },
   deny: { cls: 'danger', label: 'DENY' },
+};
+
+const VERDICT_ICON: Record<FeedDecision, typeof CheckCircle2> = {
+  permit: CheckCircle2,
+  review: AlertCircle,
+  deny: XCircle,
 };
 
 const VERDICT_BORDER: Record<string, string> = {
@@ -115,19 +122,20 @@ function AdverseMediaBlock({ composites }: { composites: ReceiptComposite[] }) {
       <div className="title">Adverse-media screening</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <CompositeBadge result={am.result} />
-        {isLlm && model && <span className="badge accent">LLM · {model}</span>}
+        {isLlm && model && <span className="badge neutral">LLM · {model}</span>}
         {fallback && <span className="badge warning">keyword fallback</span>}
       </div>
       {reasoning && (
         <p
           style={{
-            fontSize: 14,
-            lineHeight: 1.62,
+            fontSize: 15,
+            lineHeight: 1.6,
             color: 'var(--text)',
             background: 'var(--surface)',
             border: '1px solid var(--border)',
             borderLeft: `3px solid ${border}`,
-            padding: '12px 14px',
+            padding: '16px',
+            borderRadius: 6,
             margin: 0,
           }}
         >
@@ -197,7 +205,8 @@ function BdCall({ call }: { call: BDCallAudit }) {
         border: '1px solid var(--border)',
         borderLeft: `3px solid ${denied ? 'var(--danger)' : 'var(--healthy)'}`,
         background: denied ? 'rgba(179,60,60,0.06)' : 'var(--surface)',
-        padding: '10px 12px',
+        padding: '12px',
+        borderRadius: 6,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -382,12 +391,16 @@ export function ReceiptDetail({
   const composites = receiptComposites(record);
   const bdCalls = recordBdCalls(record);
   const badge = DECISION_BADGE[entry.decision];
+  const VerdictIcon = VERDICT_ICON[entry.decision];
 
   return (
-    <div>
+    <div className="rcpt-detail">
       <div className="rail-header" style={{ flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className={`badge ${badge.cls}`}>{badge.label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className={`rcpt-verdict ${entry.decision}`}>
+            <VerdictIcon size={16} aria-hidden />
+            {badge.label}
+          </span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text)' }}>{entry.agentType}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)', marginLeft: 'auto' }}>
             {entry.actionName}
@@ -401,7 +414,7 @@ export function ReceiptDetail({
 
       <div className="rail-section">
         <div className="title">Verification</div>
-        <button type="button" className="btn primary" onClick={() => void verifyClean()} disabled={clean.status === 'loading'}>
+        <button type="button" className="btn" onClick={() => void verifyClean()} disabled={clean.status === 'loading'}>
           {clean.status === 'loading' ? 'Verifying…' : 'Verify this receipt'}
         </button>
         <div style={{ marginTop: 12 }}>

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@peculiar/asn1-cms": "^2.7.0",
     "@peculiar/asn1-schema": "^2.7.0",
     "@peculiar/asn1-tsp": "^2.7.0",

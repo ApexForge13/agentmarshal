@@ -11,19 +11,22 @@ RUN make build-static
 
 
 # ---------- Stage 2: build the Next.js standalone bundle ----------
-FROM node:20-alpine AS web-builder
+FROM node:24-alpine AS web-builder
 
 # Native deps for better-sqlite3
 RUN apk add --no-cache python3 make g++ libc6-compat
 
 WORKDIR /build
 
-COPY package.json package-lock.json ./
-# Full deps (dev included): Tailwind, TypeScript, esbuild are needed by `next build`
-# and by the seed-script bundle step below.
-RUN npm ci
+# pnpm via corepack (repo is pnpm; package.json engines require node >=24 and
+# .npmrc sets engine-strict, so this builder must be node 24 — see FROM above).
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+COPY package.json pnpm-lock.yaml .npmrc ./
+# Full deps (dev included): TypeScript is needed by `next build`; the seed-script
+# bundle step below fetches a pinned esbuild via `pnpm dlx`.
+RUN pnpm install --frozen-lockfile
 
-COPY tsconfig.json next.config.ts postcss.config.mjs eslint.config.mjs ./
+COPY tsconfig.json next.config.ts eslint.config.mjs ./
 COPY app ./app
 COPY components ./components
 COPY lib ./lib
@@ -31,15 +34,23 @@ COPY scripts ./scripts
 COPY types ./types
 COPY configs ./configs
 COPY public ./public
+# Build-time JSON imports: JSON Schemas (spec/) and the fixtures inlined into the
+# bundle at build (data/contracts, data/verify, data/voice). Runtime fs reads
+# (keys, audit DB, demo-receipts) live on the Fly volume and never enter the image.
+COPY spec ./spec
+COPY data/contracts ./data/contracts
+COPY data/verify ./data/verify
+COPY data/voice ./data/voice
 
-RUN npm run build
+RUN pnpm run build
 
 # Bundle the seed script into a single, self-contained JS file that the
-# runtime image can `node`-run without devDeps or tsx.
-RUN npx --no-install esbuild scripts/seed-audit.ts \
+# runtime image can `node`-run without devDeps or tsx. esbuild is fetched
+# pinned via pnpm dlx (it is not a project dependency).
+RUN pnpm dlx esbuild@0.27.7 scripts/seed-audit.ts \
       --bundle \
       --platform=node \
-      --target=node20 \
+      --target=node24 \
       --external:better-sqlite3 \
       --alias:@=. \
       --outfile=seed-audit.bundle.js
@@ -47,14 +58,14 @@ RUN npx --no-install esbuild scripts/seed-audit.ts \
 
 # ---------- Stage 3: minimal runtime image ----------
 # Start from bare alpine and copy in only the node binary to skip the
-# ~80MB of npm/yarn/headers that ship in node:20-alpine.
+# ~80MB of npm/yarn/headers that ship in node:24-alpine.
 FROM alpine:3.20 AS runtime
 
 # libstdc++ for the node binary, libc6-compat so the prebuilt better-sqlite3
 # musl .node loads cleanly, tini for clean signal handling.
 RUN apk add --no-cache libstdc++ libc6-compat tini
 
-COPY --from=node:20-alpine /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:24-alpine /usr/local/bin/node /usr/local/bin/node
 
 WORKDIR /app
 

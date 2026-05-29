@@ -1,7 +1,11 @@
 node_modules
 .next
 .git
-data/
+data/*
+!data/contracts
+!data/verify
+!data/voice
+data/keys
 *.db
 __tests__
 *.test.ts

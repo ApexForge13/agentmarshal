@@ -22,7 +22,7 @@ Authorization engines answer one question: allow or deny. That answer is a
 verdict, and a verdict is only as trustworthy as the system that produced it.
 When a regulator examines an AI system years after the fact, "our logs say we
 checked" is not evidence. AgentMarshal turns every agent decision into evidence:
-a Compliance Receipt carrying the declared scope, the detected intent, the rules
+a signed audit record carrying the declared scope, the detected intent, the rules
 that fired, the verdict, and the inputs that drove it, signed with Ed25519 over
 the RFC 8785 (JCS) canonical form of the record and anchored to a third-party
 RFC 3161 timestamp. Change a single character of a signed receipt and
@@ -66,15 +66,18 @@ TAMPERED with a signature mismatch.
 AgentMarshal governs Bright Data calls end to end. Agents reach Bright Data
 through AgentMarshal's MCP proxy at /api/mcp/v1, which evaluates each tool call
 against the agent's Scope Contract bd_permissions before forwarding approved
-calls. Six Bright Data products are governed:
+calls. Five Bright Data products are governed:
 
-1. SERP API (serp_adverse_media_search)
-2. Web Unlocker (unlock_news_article)
-3. Crawl API (crawl_article_content)
-4. MCP Server passthrough (bd_mcp_passthrough, a single allowlisted generic tool
-   so any tool Bright Data adds is auto-governed)
-5. Scraping Browser (browse_registry_page, via puppeteer-core over CDP)
-6. The underlying proxy network that the above ride on
+1. SERP API: fires live in the demo
+2. Crawl API: fires live in the demo
+3. Web Unlocker: wired, policy-gated
+4. Scraping Browser: wired, policy-gated
+5. MCP passthrough (bd_mcp_passthrough): a single allowlisted generic tool so any
+   tool Bright Data adds is auto-governed
+
+In the live demo, screening a counterparty fires one SERP search and three Crawl
+scrapes; each call is checked against policy before it runs and its response hash
+is sealed into the receipt.
 
 ## AI/ML API integration
 
@@ -120,7 +123,8 @@ Architecture and contract model are specified in:
 - Inspection layer: Veea Lobster Trap (Go sidecar, unmodified)
 - LLM backend: OpenAI-compatible (Groq in the hosted demo); AI/ML API for
   adverse-media scoring
-- Data acquisition: Bright Data (six products, governed via MCP proxy)
+- Data acquisition: Bright Data (SERP, Crawl, Web Unlocker, Scraping Browser,
+  governed via MCP proxy; SERP and Crawl fire live)
 - Storage: SQLite via better-sqlite3
 - Hosting: Fly.io
 

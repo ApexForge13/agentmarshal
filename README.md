@@ -1,6 +1,6 @@
 # AgentMarshal
 
-> Verdict gives you a verdict. AgentMarshal gives you the receipt that proves it.
+> AgentMarshal gives you the receipt that proves what your agent knew when it decided.
 
 AgentMarshal is a governance and audit-evidence layer for autonomous AI agents
 that produces a cryptographically signed, externally timestamped, independently

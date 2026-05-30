@@ -2,11 +2,13 @@
 
 > Verdict gives you a verdict. AgentMarshal gives you the receipt that proves it.
 
-AgentMarshal is a governance and audit-evidence layer for autonomous AI agents,
-built on Veea's Lobster Trap and wired to Bright Data. It governs what an agent
-is allowed to do with a declarative Scope Contract, and on every decision it
-emits a cryptographically signed, externally timestamped Compliance Receipt that
-anyone can verify without trusting AgentMarshal at all.
+AgentMarshal is a governance and audit-evidence layer for autonomous AI agents
+that produces a cryptographically signed, externally timestamped, independently
+verifiable receipt for every decision and every refusal. Every agent action,
+including every Bright Data call (SERP, Crawl API, Web Unlocker, and Scraping
+Browser, all through an MCP proxy), is checked against a declarative Scope
+Contract before it runs and sealed into that receipt, which anyone can verify
+without trusting AgentMarshal at all.
 
 - Demo video: https://youtu.be/ZOu_-YMRmEE
 - Live demo: https://demo.agentmarshal.dev/receipts

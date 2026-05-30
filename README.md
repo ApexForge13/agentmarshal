@@ -8,6 +8,7 @@ is allowed to do with a declarative Scope Contract, and on every decision it
 emits a cryptographically signed, externally timestamped Compliance Receipt that
 anyone can verify without trusting AgentMarshal at all.
 
+- Demo video: https://youtu.be/ZOu_-YMRmEE
 - Live demo: https://demo.agentmarshal.dev/receipts
 - Verify a receipt: https://demo.agentmarshal.dev/verify
 - Receipt browser (demo cold open): https://demo.agentmarshal.dev/receipts

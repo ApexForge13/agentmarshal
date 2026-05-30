@@ -31,15 +31,10 @@ framework. Lobster Trap inspects prompts and scores risk. AgentMarshal consumes
 those signals, evaluates the action against the agent's Scope Contract, and
 produces the receipt.
 
-## Why it matters: OFAC v. TradeStation
+## Why it matters
 
-The hero arc is sanctions screening. In OFAC v. TradeStation Securities
-(March 17, 2026, a 1.11M USD settlement), the failure mode was reconstructing
-what a system did long after it did it. Every AgentMarshal receipt has a
-third-party-anchored proof of issuance time and a tamper-evident body, which
-makes the "we have to reconstruct it from logs" failure mode structurally
-impossible. Source:
-https://ofac.treasury.gov/recent-actions/20260317
+AI agents are making decisions at machine speed. AgentMarshal produces signed,
+timestamped, externally-anchored receipts for every decision and every refusal.
 
 The demo screens counterparties for sanctions exposure and adverse media, then
 shows the receipt browser at /receipts: a chain of signed Internal Audit records
